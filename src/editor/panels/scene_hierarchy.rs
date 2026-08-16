@@ -52,9 +52,9 @@ pub fn draw_system(
             // Collect root entities (those without a parent, or whose parent is not a SceneEntity).
             let mut roots: Vec<Entity> = scene_entities
                 .iter()
-                .filter(|e| {
+                .filter(|&e| {
                     parents
-                        .get(**e)
+                        .get(e)
                         .map(|p| !scene_entities.contains(p.get()))
                         .unwrap_or(true)
                 })

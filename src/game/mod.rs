@@ -45,7 +45,7 @@ fn spawn_sample_scene(
     // Sphere
     commands.spawn((
         PbrBundle {
-            mesh: meshes.add(Sphere::new(0.5).mesh().ico(5).unwrap()),
+            mesh: meshes.add(Sphere::new(0.5).mesh().ico(5)),
             material: materials.add(StandardMaterial {
                 base_color: Color::srgb(0.2, 0.5, 0.8),
                 ..default()

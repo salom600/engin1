@@ -87,7 +87,7 @@ impl EditorTheme {
         let mut style = (*ctx.style()).clone();
         style.visuals = self.to_visuals();
         style.spacing.item_spacing = egui::vec2(6.0, 4.0);
-        style.spacing.window_margin = egui::Margin::same(8);
+        style.spacing.window_margin = egui::Margin::same(8.0);
         ctx.set_style(style);
     }
 

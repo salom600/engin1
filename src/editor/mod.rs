@@ -100,7 +100,12 @@ impl Plugin for EditorPlugin {
 }
 
 /// Spawn the editor's viewport camera and a default light + grid.
-fn setup_editor_camera(mut commands: Commands, settings: Res<EditorSettings>) {
+fn setup_editor_camera(
+    mut commands: Commands,
+    settings: Res<EditorSettings>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
     // Editor camera
     commands.spawn((
         Camera3dBundle {
@@ -146,11 +151,11 @@ fn setup_editor_camera(mut commands: Commands, settings: Res<EditorSettings>) {
     if settings.show_grid {
         commands.spawn((
             PbrBundle {
-                mesh: Mesh::from(bevy::math::primitives::Plane3d::default()),
-                material: StandardMaterial {
-                    base_color: Color::rgb(0.2, 0.2, 0.22),
+                mesh: meshes.add(bevy::math::primitives::Plane3d::default()),
+                material: materials.add(StandardMaterial {
+                    base_color: Color::srgb(0.2, 0.2, 0.22),
                     ..default()
-                },
+                }),
                 transform: Transform::from_scale(Vec3::new(50.0, 1.0, 50.0)),
                 ..default()
             },
