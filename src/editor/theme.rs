@@ -116,8 +116,12 @@ impl EditorTheme {
 /// Convert a Bevy [`Color`] to an egui [`Color32`].
 pub fn bevy_color_to_egui(color: Color) -> Color32 {
     let srgba: bevy::color::Srgba = color.into();
-    let [r, g, b, a] = srgba.to_u8_array();
-    Color32::from_rgba_unmultiplied(r, g, b, a)
+    Color32::from_rgba_unmultiplied(
+        (srgba.red * 255.0) as u8,
+        (srgba.green * 255.0) as u8,
+        (srgba.blue * 255.0) as u8,
+        (srgba.alpha * 255.0) as u8,
+    )
 }
 
 /// Convert an egui [`Color32`] to a Bevy [`Color`].

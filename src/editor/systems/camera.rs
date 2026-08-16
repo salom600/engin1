@@ -30,7 +30,7 @@ pub fn orbit_camera_system(
     keys: Res<ButtonInput<KeyCode>>,
     buttons: Res<ButtonInput<MouseButton>>,
     time: Res<Time>,
-    ctxs: bevy_egui::EguiContexts,
+    mut ctxs: bevy_egui::EguiContexts,
 ) {
     let Some(ctx) = ctxs.try_ctx_mut() else {
         return;
@@ -125,7 +125,7 @@ pub fn orbit_camera_system(
 /// the system from being unused.
 pub fn viewport_picking_system(
     buttons: Res<ButtonInput<MouseButton>>,
-    ctxs: bevy_egui::EguiContexts,
+    mut ctxs: bevy_egui::EguiContexts,
     _selection: ResMut<Selection>,
 ) {
     let _ = (buttons, ctxs, _selection);
