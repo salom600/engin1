@@ -13,10 +13,7 @@ pub struct ScriptingBridgePlugin;
 
 impl Plugin for ScriptingBridgePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            (hot_reload_scripts_system, run_scripts_system),
-        );
+        app.add_systems(Update, (hot_reload_scripts_system, run_scripts_system));
         info!("ScriptingBridgePlugin initialized.");
     }
 }

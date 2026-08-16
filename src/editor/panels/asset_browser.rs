@@ -29,7 +29,11 @@ pub fn draw_system(
                 ui.label(format!(
                     "{}: {}",
                     project.assets_dir.display(),
-                    if project.assets_dir_exists() { "exists" } else { "missing" }
+                    if project.assets_dir_exists() {
+                        "exists"
+                    } else {
+                        "missing"
+                    }
                 ));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui.button("⟳ Re-scan").clicked() {
@@ -105,10 +109,7 @@ pub fn draw_system(
                                 ui.separator();
                                 ui.label(&entry.relative_path);
                                 ui.separator();
-                                ui.label(format!(
-                                    "{:.1} KB",
-                                    entry.size_bytes as f64 / 1024.0
-                                ));
+                                ui.label(format!("{:.1} KB", entry.size_bytes as f64 / 1024.0));
                                 ui.separator();
                                 if ui.button("Import").clicked() {
                                     info!("Import {:?} (TODO)", entry.path);

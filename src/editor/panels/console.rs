@@ -8,10 +8,7 @@ use bevy::prelude::*;
 use bevy_egui::egui;
 
 /// Console draw system.
-pub fn draw_system(
-    mut ctxs: bevy_egui::EguiContexts,
-    editor_log: Res<EditorLog>,
-) {
+pub fn draw_system(mut ctxs: bevy_egui::EguiContexts, editor_log: Res<EditorLog>) {
     let Some(ctx) = ctxs.ctx_mut().into() else {
         return;
     };
@@ -114,10 +111,7 @@ pub fn draw_system(
                             ),
                             "scan" => editor_log.push(LogLevel::Info, "Re-scanning assets..."),
                             "save" => editor_log.push(LogLevel::Info, "Saving scene..."),
-                            _ => editor_log.push(
-                                LogLevel::Warn,
-                                format!("Unknown command: {cmd}"),
-                            ),
+                            _ => editor_log.push(LogLevel::Warn, format!("Unknown command: {cmd}")),
                         }
                     }
                 }

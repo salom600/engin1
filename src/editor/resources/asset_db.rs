@@ -127,10 +127,7 @@ impl AssetDatabase {
                 self.scan_dir(root, &path, out)?;
             } else if path.is_file() {
                 let metadata = entry.metadata()?;
-                let ext = path
-                    .extension()
-                    .and_then(|e| e.to_str())
-                    .unwrap_or("");
+                let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
                 let relative_path = path
                     .strip_prefix(root)
                     .ok()

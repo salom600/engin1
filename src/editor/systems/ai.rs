@@ -18,10 +18,7 @@ impl Plugin for AIBridgePlugin {
 }
 
 /// Log the state of all AI agents every second (for debugging).
-fn debug_ai_agents_system(
-    _agents: Query<&crate::editor::components::AIAgent>,
-    _time: Res<Time>,
-) {
+fn debug_ai_agents_system(_agents: Query<&crate::editor::components::AIAgent>, _time: Res<Time>) {
     // Stub: the big-brain plugin handles the actual scoring & action selection;
     // here we would log the agent's current action to the EditorLog for the
     // Console panel.

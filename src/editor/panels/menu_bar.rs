@@ -1,6 +1,6 @@
 //! Top menu bar (File / Edit / View / Asset / Build / Help).
 
-use crate::editor::resources::{CommandHistory, ProjectResource, EditorSettings};
+use crate::editor::resources::{CommandHistory, EditorSettings, ProjectResource};
 use crate::editor::state::EditorState;
 use bevy::prelude::*;
 use bevy_egui::egui;

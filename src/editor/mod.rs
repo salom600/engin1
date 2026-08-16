@@ -100,10 +100,7 @@ impl Plugin for EditorPlugin {
 }
 
 /// Spawn the editor's viewport camera and a default light + grid.
-fn setup_editor_camera(
-    mut commands: Commands,
-    settings: Res<EditorSettings>,
-) {
+fn setup_editor_camera(mut commands: Commands, settings: Res<EditorSettings>) {
     // Editor camera
     commands.spawn((
         Camera3dBundle {

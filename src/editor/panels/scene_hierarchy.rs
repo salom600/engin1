@@ -52,10 +52,18 @@ pub fn draw_system(
             let mut roots: Vec<Entity> = scene_entities
                 .iter()
                 .filter(|e| {
-                    parents.get(**e).map(|p| !scene_entities.contains(p.get())).unwrap_or(true)
+                    parents
+                        .get(**e)
+                        .map(|p| !scene_entities.contains(p.get()))
+                        .unwrap_or(true)
                 })
                 .collect();
-            roots.sort_by_key(|e| names.get(*e).map(|n| n.as_str().to_string()).unwrap_or_default());
+            roots.sort_by_key(|e| {
+                names
+                    .get(*e)
+                    .map(|n| n.as_str().to_string())
+                    .unwrap_or_default()
+            });
 
             egui::ScrollArea::vertical()
                 .auto_shrink([false, false])
@@ -115,15 +123,7 @@ fn draw_entity_tree(
         if let Ok(child_list) = children.get(entity) {
             for &child in child_list {
                 draw_entity_tree(
-                    child,
-                    selection,
-                    _parents,
-                    children,
-                    names,
-                    hidden,
-                    locked,
-                    commands,
-                    ui,
+                    child, selection, _parents, children, names, hidden, locked, commands, ui,
                     filter,
                 );
             }
@@ -147,10 +147,7 @@ fn draw_entity_tree(
         egui::Color32::from_rgb(220, 220, 220)
     };
 
-    let has_children = children
-        .get(entity)
-        .map(|c| !c.is_empty())
-        .unwrap_or(false);
+    let has_children = children.get(entity).map(|c| !c.is_empty()).unwrap_or(false);
 
     ui.horizontal(|ui| {
         // Expand / collapse arrow
@@ -162,7 +159,10 @@ fn draw_entity_tree(
         };
 
         // The entity button itself
-        let btn = egui::SelectableLabel::new(is_selected, egui::RichText::new(&label_text).color(label_color));
+        let btn = egui::SelectableLabel::new(
+            is_selected,
+            egui::RichText::new(&label_text).color(label_color),
+        );
         let resp = ui.add(btn);
         if resp.clicked() {
             selection.set(entity);
@@ -221,15 +221,7 @@ fn draw_entity_tree(
             if let Ok(child_list) = children.get(entity) {
                 for &child in child_list {
                     draw_entity_tree(
-                        child,
-                        selection,
-                        _parents,
-                        children,
-                        names,
-                        hidden,
-                        locked,
-                        commands,
-                        ui,
+                        child, selection, _parents, children, names, hidden, locked, commands, ui,
                         filter,
                     );
                 }
