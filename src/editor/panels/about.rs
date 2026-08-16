@@ -10,7 +10,7 @@ pub fn draw_system(
     mut ctxs: bevy_egui::EguiContexts,
     mut panel_visibility: ResMut<crate::editor::panels::PanelVisibility>,
 ) {
-    let Some(ctx) = ctxs.ctx_mut().into() else {
+    let Some(ctx) = ctxs.ctx_mut() else {
         return;
     };
 

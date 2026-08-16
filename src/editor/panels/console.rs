@@ -9,11 +9,19 @@ use bevy_egui::egui;
 
 /// Console draw system.
 pub fn draw_system(mut ctxs: bevy_egui::EguiContexts, editor_log: Res<EditorLog>) {
-    let Some(ctx) = ctxs.ctx_mut().into() else {
+    let Some(ctx) = ctxs.ctx_mut() else {
         return;
     };
 
-    egui::SidePanel::bottom("console")
+    // Severity filter flags — these need to persist across frames. In a real
+    // implementation, we'd store them in a `ResMut<ConsoleState>`. For now,
+    // we keep them as local variables that default to "true" each frame.
+    let mut show_trace = true;
+    let mut show_info = true;
+    let mut show_warn = true;
+    let mut show_error = true;
+
+    egui::TopBottomPanel::bottom("console")
         .default_height(180.0)
         .height_range(80.0..=520.0)
         .resizable(true)
@@ -21,10 +29,6 @@ pub fn draw_system(mut ctxs: bevy_egui::EguiContexts, editor_log: Res<EditorLog>
             ui.horizontal(|ui| {
                 ui.strong("Console");
                 ui.separator();
-                let mut show_trace = true;
-                let mut show_info = true;
-                let mut show_warn = true;
-                let mut show_error = true;
                 ui.checkbox(&mut show_trace, "Trace");
                 ui.checkbox(&mut show_info, "Info");
                 ui.checkbox(&mut show_warn, "Warn");
@@ -94,7 +98,10 @@ pub fn draw_system(mut ctxs: bevy_egui::EguiContexts, editor_log: Res<EditorLog>
             ui.horizontal(|ui| {
                 ui.label("$");
                 let mut cmd = String::new();
-                let resp = ui.text_edit_singleline(&mut cmd, "Type a command and press Enter...");
+                let resp = ui.add(
+                    egui::TextEdit::singleline(&mut cmd)
+                        .hint_text("Type a command and press Enter..."),
+                );
                 if resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
                     if !cmd.trim().is_empty() {
                         editor_log.push(LogLevel::Info, format!("> {}", cmd));

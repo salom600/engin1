@@ -70,7 +70,7 @@ fn main() {
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "Bevy Engine Editor".to_string(),
-                resolution: (1600.0, 900.0),
+                resolution: bevy::window::WindowResolution::new(1600.0, 900.0),
                 present_mode: bevy::window::PresentMode::AutoVsync,
                 visible: true,
                 resizable: true,

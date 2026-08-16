@@ -12,7 +12,7 @@ pub fn draw_system(
     mut next_state: ResMut<NextState<EditorState>>,
     _project: Res<ProjectResource>,
 ) {
-    let Some(ctx) = ctxs.ctx_mut().into() else {
+    let Some(ctx) = ctxs.ctx_mut() else {
         return;
     };
 
@@ -35,9 +35,11 @@ pub fn draw_system(
                 };
                 if ui
                     .add(
-                        egui::Button::new(format!("▶ {play_label}"))
-                            .fill(play_color)
-                            .text_color(egui::Color32::WHITE),
+                        egui::Button::new(
+                            egui::RichText::new(format!("▶ {play_label}"))
+                                .color(egui::Color32::WHITE),
+                        )
+                        .fill(play_color),
                     )
                     .clicked()
                 {
@@ -53,9 +55,10 @@ pub fn draw_system(
                 };
                 if ui
                     .add(
-                        egui::Button::new("⏸ Pause")
-                            .fill(pause_color)
-                            .text_color(egui::Color32::WHITE),
+                        egui::Button::new(
+                            egui::RichText::new("⏸ Pause").color(egui::Color32::WHITE),
+                        )
+                        .fill(pause_color),
                     )
                     .clicked()
                 {
@@ -66,9 +69,10 @@ pub fn draw_system(
 
                 if ui
                     .add(
-                        egui::Button::new("⏹ Stop")
-                            .fill(egui::Color32::from_rgb(204, 0, 0))
-                            .text_color(egui::Color32::WHITE),
+                        egui::Button::new(
+                            egui::RichText::new("⏹ Stop").color(egui::Color32::WHITE),
+                        )
+                        .fill(egui::Color32::from_rgb(204, 0, 0)),
                     )
                     .clicked()
                 {

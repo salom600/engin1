@@ -32,9 +32,8 @@ pub fn orbit_camera_system(
     time: Res<Time>,
     ctxs: bevy_egui::EguiContexts,
 ) {
-    let ctx = match ctxs.ctx() {
-        Some(c) => c,
-        None => return,
+    let Some(ctx) = ctxs.ctx_mut() else {
+        return;
     };
 
     // Don't move the camera when egui is consuming input.

@@ -96,7 +96,6 @@ egui_file = "0.17"
 
 [features]
 default = [
-    "bevy/dynamic_linking",
     "bevy/wayland",
     "bevy/x11",
 ]
@@ -110,7 +109,6 @@ opt-level = 3
 lto = "fat"
 codegen-units = 1
 strip = true
-panic = "abort"
 debug = false
 incremental = false
 

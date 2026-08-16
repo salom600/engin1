@@ -19,7 +19,7 @@ pub fn draw_system(
     visibility_query: Query<&Visibility>,
     name_query: Query<&Name>,
 ) {
-    let Some(ctx) = ctxs.ctx_mut().into() else {
+    let Some(ctx) = ctxs.ctx_mut() else {
         return;
     };
 

@@ -7,7 +7,7 @@ pub mod project;
 pub mod settings;
 
 pub use asset_db::{AssetDatabase, AssetEntry, AssetKind};
-pub use editor_log::EditorLog;
+pub use editor_log::{EditorLog, LogEntry, LogLevel};
 pub use history::{Command, CommandHistory};
 pub use project::ProjectResource;
 pub use settings::{EditorSettings, ThemeKind};

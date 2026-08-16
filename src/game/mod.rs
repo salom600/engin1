@@ -62,7 +62,7 @@ fn spawn_sample_scene(
     // Torus
     commands.spawn((
         PbrBundle {
-            mesh: meshes.add(Torus::new(0.4, 0.8, 16, 32)),
+            mesh: meshes.add(Torus::new(0.4, 0.8)),
             material: materials.add(StandardMaterial {
                 base_color: Color::srgb(0.9, 0.8, 0.2),
                 ..default()

@@ -14,11 +14,11 @@ pub fn draw_system(
     asset_db: Res<AssetDatabase>,
     project: Res<ProjectResource>,
 ) {
-    let Some(ctx) = ctxs.ctx_mut().into() else {
+    let Some(ctx) = ctxs.ctx_mut() else {
         return;
     };
 
-    egui::SidePanel::bottom("asset_browser")
+    egui::TopBottomPanel::bottom("asset_browser")
         .default_height(220.0)
         .height_range(120.0..=520.0)
         .resizable(true)
@@ -77,7 +77,7 @@ pub fn draw_system(
             // Filter input
             let mut filter = String::new();
             ui.horizontal(|ui| {
-                ui.text_edit_singleline(&mut filter, "🔍 Filter files...");
+                ui.add(egui::TextEdit::singleline(&mut filter).hint_text("🔍 Filter files..."));
                 ui.separator();
                 ui.label("Sort: Name ▾");
             });

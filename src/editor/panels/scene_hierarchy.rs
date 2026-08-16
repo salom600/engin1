@@ -6,7 +6,8 @@
 
 use crate::editor::components::{Hidden, Locked, SceneEntity, Selected};
 use crate::editor::state::Selection;
-use bevy::hierarchy::Children;
+use bevy::ecs::entity::Entity;
+use bevy::hierarchy::{Children, Parent};
 use bevy::prelude::*;
 use bevy_egui::egui;
 
@@ -17,12 +18,12 @@ pub fn draw_system(
     parents: Query<&Parent>,
     children: Query<&Children>,
     names: Query<&Name>,
-    scene_entities: Query<&SceneEntity>,
+    scene_entities: Query<Entity, With<SceneEntity>>,
     hidden: Query<&Hidden>,
     locked: Query<&Locked>,
     mut commands: Commands,
 ) {
-    let Some(ctx) = ctxs.ctx_mut().into() else {
+    let Some(ctx) = ctxs.ctx_mut() else {
         return;
     };
 
@@ -45,7 +46,7 @@ pub fn draw_system(
 
             // Filter input
             let mut filter = String::new();
-            ui.text_edit_singleline(&mut filter, "🔍 Filter...");
+            ui.add(egui::TextEdit::singleline(&mut filter).hint_text("🔍 Filter..."));
             ui.separator();
 
             // Collect root entities (those without a parent, or whose parent is not a SceneEntity).
@@ -112,7 +113,7 @@ fn draw_entity_tree(
     let name = names
         .get(entity)
         .map(|n| n.as_str().to_string())
-        .unwrap_or_else(|| format!("Entity {:?}", entity));
+        .unwrap_or_else(|_| format!("Entity {:?}", entity));
     let is_hidden = hidden.get(entity).is_ok();
     let is_locked = locked.get(entity).is_ok();
     let is_selected = selection.contains(entity);

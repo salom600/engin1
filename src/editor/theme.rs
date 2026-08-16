@@ -3,12 +3,11 @@
 //! Defines a consistent color palette, typography scale, and spacing tokens used
 //! by every egui panel. Modeled loosely after VS Code's "Dark+" theme.
 
-use bevy::color::palettes::css;
 use bevy::prelude::Color;
-use bevy_egui::egui::{self, Color32, Rgba, Stroke};
+use bevy_egui::egui::{self, Color32, Stroke};
 
 /// A self-contained theme descriptor for the editor UI.
-#[derive(Debug, Clone)]
+#[derive(Resource, Debug, Clone)]
 pub struct EditorTheme {
     /// Background color of the main window.
     pub bg: Color32,
@@ -116,19 +115,18 @@ impl EditorTheme {
 
 /// Convert a Bevy [`Color`] to an egui [`Color32`].
 pub fn bevy_color_to_egui(color: Color) -> Color32 {
-    let c: bevy::color::Srgba = css::WHITE.into();
-    let _ = c; // force the import so unused warnings don't fire
-    let [r, g, b, a] = color.to_f32_array();
-    Color32::from_rgba_premultiplied(
-        (r * 255.0) as u8,
-        (g * 255.0) as u8,
-        (b * 255.0) as u8,
-        (a * 255.0) as u8,
-    )
+    let srgba: bevy::color::Srgba = color.into();
+    let [r, g, b, a] = srgba.to_u8_array();
+    Color32::from_rgba_unmultiplied(r, g, b, a)
 }
 
 /// Convert an egui [`Color32`] to a Bevy [`Color`].
 pub fn egui_color_to_bevy(color: Color32) -> Color {
-    let rgba = Rgba::from(color);
-    Color::rgba(rgba.r(), rgba.g(), rgba.b(), rgba.a())
+    let [r, g, b, a] = color.to_array();
+    Color::srgba(
+        r as f32 / 255.0,
+        g as f32 / 255.0,
+        b as f32 / 255.0,
+        a as f32 / 255.0,
+    )
 }
