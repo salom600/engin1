@@ -1,0 +1,35 @@
+# Rust
+/target
+**/*.rs.bk
+Cargo.lock.bak
+
+# IDE files
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+/dist
+/build
+*.exe
+*.dll
+*.so
+*.dylib
+*.app
+
+# Editor local state
+.editor_state.json
+.bevy_editor/
+editor.toml
+
+# Logs
+*.log
+logs/
+
+# Asset cache
+.cache/
+*.ktx2.cache

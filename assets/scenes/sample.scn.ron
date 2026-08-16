@@ -1,0 +1,18 @@
+(
+    // Sample Bevy scene file (.scn.ron)
+    // Loaded by the editor when you do File → Load Scene.
+
+    resources: {},
+    entities: {
+        4294967296: (  // Entity ID
+            components: {
+                "bevy_transform::components::transform::Transform": (
+                    translation: (0.0, 0.5, 0.0),
+                    rotation: (0.0, 0.0, 0.0, 1.0),
+                    scale: (1.0, 1.0, 1.0),
+                ),
+                "bevy_core::name::Name": "Demo Cube",
+            },
+        ),
+    },
+)

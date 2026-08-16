@@ -1,0 +1,204 @@
+name: Auto-Fix on Build Failure
+
+on:
+  workflow_run:
+    workflows: ["CI / Build / Release"]
+    types:
+      - completed
+
+permissions:
+  contents: write
+  actions: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  auto-fix:
+    name: Auto-Fix Build Failures
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_branch }}
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Linux system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwayland-dev libxkbcommon-dev libasound2-dev libudev-dev \
+            pkg-config libssl-dev
+
+      - name: Download workflow run artifacts (logs)
+        uses: actions/github-script@v7
+        id: download-logs
+        with:
+          script: |
+            const fs = require('fs');
+            const runId = ${{ github.event.workflow_run.id }};
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // List all jobs in the failed workflow run
+            const jobs = await github.rest.actions.listJobsForWorkflowRun({
+              owner,
+              repo,
+              run_id: runId
+            });
+
+            let logContent = '';
+            for (const job of jobs.data.jobs) {
+              if (job.conclusion === 'failure') {
+                try {
+                  const logs = await github.rest.actions.downloadJobLogsForWorkflowRun({
+                    owner,
+                    repo,
+                    job_id: job.id
+                  });
+                  logContent += `=== Job: ${job.name} (id=${job.id}) ===\n`;
+                  logContent += Buffer.from(logs.data).toString('utf8');
+                  logContent += '\n\n';
+                } catch (err) {
+                  console.log(`Failed to download logs for job ${job.id}:`, err.message);
+                }
+              }
+            }
+
+            fs.writeFileSync('/tmp/failed_logs.txt', logContent);
+            console.log(`Captured ${logContent.length} bytes of failure logs`);
+
+      - name: Apply automated fixes
+        id: fix
+        run: |
+          set -e
+          cd "$GITHUB_WORKSPACE"
+
+          if [ ! -s /tmp/failed_logs.txt ]; then
+            echo "No failure logs captured, cannot apply automated fixes."
+            echo "applied=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "=== Failure log (first 100 lines) ==="
+          head -100 /tmp/failed_logs.txt
+          echo "===================================="
+
+          APPLIED_FIXES=()
+
+          # Common fix 1: Cargo.lock out of date or missing
+          if grep -qE "Cargo.lock|failed to load source|missing Cargo.lock" /tmp/failed_logs.txt; then
+            echo "Fix: regenerating Cargo.lock"
+            cargo generate-lockfile 2>/dev/null || cargo update 2>/dev/null || true
+            APPLIED_FIXES+=("regenerated Cargo.lock")
+          fi
+
+          # Common fix 2: Dependency version conflicts
+          if grep -qE "failed to select a version|version conflict" /tmp/failed_logs.txt; then
+            echo "Fix: running cargo update"
+            cargo update 2>/dev/null || true
+            APPLIED_FIXES+=("ran cargo update")
+          fi
+
+          # Common fix 3: Missing bevy feature
+          if grep -qE "feature .+ was not found|does not have (a |that )feature" /tmp/failed_logs.txt; then
+            echo "Fix: removing unsupported features"
+            # Extract the offending feature name
+            grep -oE "feature \`[a-zA-Z_-]+\`" /tmp/failed_logs.txt | sort -u | while read -r line; do
+              feature=$(echo "$line" | sed 's/feature `//;s/`//')
+              echo "Removing feature: $feature"
+              sed -i "/\"$feature\"/d" Cargo.toml || true
+            done
+            APPLIED_FIXES+=("removed unsupported features")
+          fi
+
+          # Common fix 4: Missing system library
+          if grep -qE "wayland-client was not found|Package 'wayland-client' was not found" /tmp/failed_logs.txt; then
+            echo "Fix: ensuring wayland-dev is in CI workflow"
+            # This should already be there, but make sure
+            if ! grep -q "libwayland-dev" .github/workflows/ci.yml; then
+              sed -i 's|sudo apt-get install -y \\|sudo apt-get install -y libwayland-dev \\|g' .github/workflows/ci.yml || true
+            fi
+            APPLIED_FIXES+=("ensured libwayland-dev in CI")
+          fi
+
+          # Common fix 5: Missing imports / unused imports
+          if grep -qE "unresolved import|not found in this scope" /tmp/failed_logs.txt; then
+            echo "Fix: identified unresolved imports (would normally patch source)"
+            # In a real implementation, we'd parse the error and remove the offending imports
+            APPLIED_FIXES+=("identified unresolved imports (manual fix needed)")
+          fi
+
+          # Common fix 6: Type mismatch — bump dependency that introduced breaking change
+          if grep -qE "expected .+ found .+|mismatched types" /tmp/failed_logs.txt; then
+            echo "Fix: identified type mismatch (would normally adjust types)"
+            APPLIED_FIXES+=("identified type mismatch (manual fix needed)")
+          fi
+
+          # Common fix 7: rustfmt issues
+          if grep -qE "cargo fmt|formatting" /tmp/failed_logs.txt; then
+            echo "Fix: running cargo fmt"
+            cargo fmt --all || true
+            APPLIED_FIXES+=("ran cargo fmt")
+          fi
+
+          # Check if any changes were made
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "applied=true" >> $GITHUB_OUTPUT
+            echo "fixes<<EOF" >> $GITHUB_OUTPUT
+            printf '%s\n' "${APPLIED_FIXES[@]}" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "applied=false" >> $GITHUB_OUTPUT
+            echo "No automatic fixes could be applied."
+          fi
+
+      - name: Commit & push fix
+        if: steps.fix.outputs.applied == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          COMMIT_MSG="fix(ci): auto-repair build failure
+
+          Applied automated fixes for build failure on commit ${{ github.event.workflow_run.head_sha }}:
+
+          ${{ steps.fix.outputs.fixes }}
+
+          Generated-by: auto-fix workflow"
+          git commit -m "$COMMIT_MSG"
+          git push origin "$GITHUB_REF_NAME"
+          echo "Pushed fix to $GITHUB_REF_NAME"
+
+      - name: Re-trigger CI workflow
+        if: steps.fix.outputs.applied == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Trigger the CI workflow again
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'ci.yml',
+              ref: '${{ github.event.workflow_run.head_branch }}'
+            });
+            console.log('Re-triggered CI workflow after auto-fix.');
+
+      - name: Open issue if no automatic fix was possible
+        if: steps.fix.outputs.applied == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'Build failure - manual fix required',
+              body: `The CI build failed on commit ${{ github.event.workflow_run.head_sha }} and the auto-fix workflow was unable to resolve the issue.
+
+            Please inspect the [failed workflow run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${{ github.event.workflow_run.id }}) and apply a manual fix.`,
+              labels: ['ci-failure', 'auto-fix-failed']
+            });
