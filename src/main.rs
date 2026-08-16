@@ -35,6 +35,10 @@
 #![warn(missing_docs)]
 #![warn(clippy::all)]
 #![allow(clippy::too_many_arguments)]
+// Allow float literals without explicit _f32 suffix (very common in graphics code).
+#![allow(float_literal_f32_fallback)]
+// Allow unused imports during the active development phase.
+#![allow(unused_imports)]
 
 use bevy::prelude::*;
 use bevy_egui::EguiPlugin;

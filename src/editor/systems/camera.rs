@@ -32,7 +32,7 @@ pub fn orbit_camera_system(
     time: Res<Time>,
     ctxs: bevy_egui::EguiContexts,
 ) {
-    let Some(ctx) = ctxs.ctx_mut() else {
+    let Some(ctx) = ctxs.try_ctx_mut() else {
         return;
     };
 

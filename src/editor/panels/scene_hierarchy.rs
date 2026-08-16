@@ -23,7 +23,7 @@ pub fn draw_system(
     locked: Query<&Locked>,
     mut commands: Commands,
 ) {
-    let Some(ctx) = ctxs.ctx_mut() else {
+    let Some(ctx) = ctxs.try_ctx_mut() else {
         return;
     };
 

@@ -9,7 +9,7 @@ use bevy_egui::egui;
 
 /// Console draw system.
 pub fn draw_system(mut ctxs: bevy_egui::EguiContexts, editor_log: Res<EditorLog>) {
-    let Some(ctx) = ctxs.ctx_mut() else {
+    let Some(ctx) = ctxs.try_ctx_mut() else {
         return;
     };
 

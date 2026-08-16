@@ -14,7 +14,7 @@ pub fn draw_system(
     asset_db: Res<AssetDatabase>,
     project: Res<ProjectResource>,
 ) {
-    let Some(ctx) = ctxs.ctx_mut() else {
+    let Some(ctx) = ctxs.try_ctx_mut() else {
         return;
     };
 

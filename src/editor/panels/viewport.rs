@@ -24,7 +24,7 @@ pub fn draw_system(
     mut settings: ResMut<EditorSettings>,
     camera_query: Query<&ViewportCamera, With<EditorCamera>>,
 ) {
-    let Some(ctx) = ctxs.ctx_mut() else {
+    let Some(ctx) = ctxs.try_ctx_mut() else {
         return;
     };
 

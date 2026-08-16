@@ -3,7 +3,7 @@
 //! Defines a consistent color palette, typography scale, and spacing tokens used
 //! by every egui panel. Modeled loosely after VS Code's "Dark+" theme.
 
-use bevy::prelude::Color;
+use bevy::prelude::{Color, Resource};
 use bevy_egui::egui::{self, Color32, Stroke};
 
 /// A self-contained theme descriptor for the editor UI.
