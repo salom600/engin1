@@ -15,18 +15,19 @@ jobs:
   monitor:
     name: Check Build Status
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install Linux system dependencies
+      - name: Install Linux system dependencies (with timeout)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
+          timeout 120 sudo apt-get update -o Acquire::Retries=3 -o Acquire::http::Timeout=30 || true
+          timeout 120 sudo apt-get install -y --no-install-recommends \
             libwayland-dev libxkbcommon-dev libasound2-dev libudev-dev \
-            pkg-config libssl-dev
+            pkg-config libssl-dev || true
 
       - name: Cache cargo registry
         uses: actions/cache@v4

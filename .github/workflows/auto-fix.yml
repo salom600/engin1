@@ -16,6 +16,7 @@ jobs:
   auto-fix:
     name: Auto-Fix Build Failures
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     if: ${{ github.event.workflow_run.conclusion == 'failure' }}
     steps:
       - uses: actions/checkout@v4
@@ -27,12 +28,12 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install Linux system dependencies
+      - name: Install Linux system dependencies (with timeout)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
+          timeout 120 sudo apt-get update -o Acquire::Retries=3 -o Acquire::http::Timeout=30 || true
+          timeout 120 sudo apt-get install -y --no-install-recommends \
             libwayland-dev libxkbcommon-dev libasound2-dev libudev-dev \
-            pkg-config libssl-dev
+            pkg-config libssl-dev || true
 
       - name: Download workflow run artifacts (logs)
         uses: actions/github-script@v7
