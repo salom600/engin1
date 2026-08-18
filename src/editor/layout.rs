@@ -12,36 +12,17 @@
 //! 3. **Side panels** (`SidePanel::left` / `SidePanel::right`) — drawn next
 //! 4. **Central panel** (`CentralPanel`) — drawn LAST, fills remaining space
 //!
-//! If any panel creates a `CentralPanel` before another panel is drawn, the
-//! second panel will either overlap or be invisible. This was the root cause
-//! of the "jumbled, disorganized, fragmented" UI.
-//!
 //! By putting all panel drawing in a single system, we guarantee the correct
 //! order and avoid Bevy's `B0002` resource conflict panics.
 //!
-//! ## Layout
+//! ## System parameter limit
 //!
-//! ```text
-//! ┌─────────────────────────────────────────────────────────────┐
-//! │ Menu Bar (File / Edit / View / Asset / Build / Help)        │  top
-//! ├─────────────────────────────────────────────────────────────┤
-//! │ Toolbar (▶ Play  ⏸ Pause  ⏹ Stop  💾 Save  ➕ Add)          │  top
-//! ├──┬─────────────────────────────────────────────────┬────────┤
-//! │  │  Viewport mini-toolbar (Grid / Axes / Gizmo)     │        │
-//! │ H│ ─────────────────────────────────────────────── │ Inspect│
-//! │ i│                                                 │ or     │
-//! │ e│            3D Scene Rendering                   │        │
-//! │ r│            (Bevy camera output)                 │        │
-//! │ a│                                                 │        │
-//! │ r│                                                 │        │
-//! ├──┴─────────────────────────────────────────────────┴────────┤
-//! │ [Console] [Assets] [Output]    | filter / actions           │  bottom
-//! │                                                               │
-//! │  Log entries / Asset list / ...                               │
-//! ├─────────────────────────────────────────────────────────────┤
-//! │ FPS: 60 | Entities: 12 | ● Editing | v0.1.0                  │  bottom (status)
-//! └─────────────────────────────────────────────────────────────┘
-//! ```
+//! Bevy has a limit of 16 system parameters. To stay under this limit while
+//! accessing all the resources and queries the editor needs, we use the
+//! [`SystemParam`] derive macro to bundle related params into groups:
+//!
+//! - [`EditorQueries`] — bundles all ECS queries into one param
+//! - [`EditorResources`] — bundles all read-only resources into one param
 
 use crate::editor::components::{EditorCamera, Hidden, Locked, SceneEntity, ViewportCamera};
 use crate::editor::panels::{
@@ -54,9 +35,49 @@ use crate::editor::resources::{
 use crate::editor::state::{EditorState, Selection};
 use crate::editor::theme::EditorTheme;
 use bevy::diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin};
+use bevy::ecs::system::SystemParam;
 use bevy::hierarchy::{Children, Parent};
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts};
+
+/// Bundle of all ECS queries needed by the editor UI.
+/// This counts as a single system parameter (staying under Bevy's 16-param limit).
+#[derive(SystemParam)]
+pub struct EditorQueries<'w, 's> {
+    /// Camera query for the viewport overlay.
+    pub camera: Query<'w, 's, &'static ViewportCamera, With<EditorCamera>>,
+    /// Transform query for the inspector.
+    pub transform: Query<'w, 's, &'static Transform>,
+    /// Visibility query for the inspector.
+    pub visibility: Query<'w, 's, &'static Visibility>,
+    /// Name query for the inspector + hierarchy + status bar.
+    pub names: Query<'w, 's, &'static Name>,
+    /// Parent query for the hierarchy.
+    pub parents: Query<'w, 's, &'static Parent>,
+    /// Children query for the hierarchy.
+    pub children: Query<'w, 's, &'static Children>,
+    /// Scene entity query for the hierarchy.
+    pub scene_entities: Query<'w, 's, Entity, With<SceneEntity>>,
+    /// Hidden marker query for the hierarchy.
+    pub hidden: Query<'w, 's, &'static Hidden>,
+    /// Locked marker query for the hierarchy.
+    pub locked: Query<'w, 's, &'static Locked>,
+}
+
+/// Bundle of panel state resources (mutable). Counts as a single system param.
+#[derive(SystemParam)]
+pub struct PanelStates<'w> {
+    /// Per-panel visibility flags.
+    pub visibility: ResMut<'w, PanelVisibility>,
+    /// Which bottom tab is active.
+    pub bottom_tab: ResMut<'w, BottomTab>,
+    /// Console filter + command input state.
+    pub console: ResMut<'w, ConsoleState>,
+    /// Hierarchy filter text.
+    pub hierarchy: ResMut<'w, HierarchyState>,
+    /// Asset browser filter text.
+    pub asset_browser: ResMut<'w, AssetBrowserState>,
+}
 
 /// The master layout system. Draws ALL editor UI in the correct egui panel order.
 ///
@@ -67,28 +88,16 @@ use bevy_egui::{egui, EguiContexts};
 pub fn draw_editor_ui(
     mut ctxs: EguiContexts,
     theme: Res<EditorTheme>,
-    mut panel_visibility: ResMut<PanelVisibility>,
-    mut bottom_tab: ResMut<BottomTab>,
-    mut console_state: ResMut<ConsoleState>,
-    mut hierarchy_state: ResMut<HierarchyState>,
-    mut asset_browser_state: ResMut<AssetBrowserState>,
+    mut states: PanelStates,
+    mut selection: ResMut<Selection>,
+    mut settings: ResMut<EditorSettings>,
+    current_state: Res<State<EditorState>>,
+    mut next_state: ResMut<NextState<EditorState>>,
+    queries: EditorQueries,
     project: Res<ProjectResource>,
     asset_db: Res<AssetDatabase>,
     editor_log: Res<EditorLog>,
-    mut selection: ResMut<Selection>,
-    mut settings: ResMut<EditorSettings>,
     history: Res<CommandHistory>,
-    current_state: Res<State<EditorState>>,
-    mut next_state: ResMut<NextState<EditorState>>,
-    camera_query: Query<&ViewportCamera, With<EditorCamera>>,
-    transform_query: Query<&Transform>,
-    visibility_query: Query<&Visibility>,
-    name_query: Query<&Name>,
-    parents: Query<&Parent>,
-    children: Query<&Children>,
-    scene_entities: Query<Entity, With<SceneEntity>>,
-    hidden: Query<&Hidden>,
-    locked: Query<&Locked>,
     mut commands: Commands,
     diagnostics: Res<DiagnosticsStore>,
 ) {
@@ -103,13 +112,12 @@ pub fn draw_editor_ui(
     handle_keyboard_shortcuts(ctx, &current_state, &mut next_state);
 
     // ═══════════════════════════════════════════════════════════════
-    // 1. TOP PANELS — drawn first, in visual top-to-bottom order.
-    //    menu_bar is on top, toolbar below it.
+    // 1. TOP PANELS — menu_bar on top, toolbar below it.
     // ═══════════════════════════════════════════════════════════════
 
     menu_bar::draw(
         ctx,
-        &mut *panel_visibility,
+        &mut *states.visibility,
         &project,
         &history,
         &current_state,
@@ -120,8 +128,7 @@ pub fn draw_editor_ui(
     toolbar::draw(ctx, &current_state, &mut next_state, &project);
 
     // ═══════════════════════════════════════════════════════════════
-    // 2. BOTTOM PANELS — drawn next, in visual bottom-to-top order.
-    //    status_bar is bottommost (called first), bottom_panel above it.
+    // 2. BOTTOM PANELS — status_bar (bottommost), bottom_panel above it.
     // ═══════════════════════════════════════════════════════════════
 
     // --- Status bar (bottommost) ---
@@ -133,7 +140,7 @@ pub fn draw_editor_ui(
 
                 // FPS
                 let fps = diagnostics
-                    .get(FrameTimeDiagnosticsPlugin::FPS)
+                    .get(&FrameTimeDiagnosticsPlugin::FPS)
                     .and_then(|d| d.smoothed())
                     .unwrap_or(0.0);
                 let fps_color = if fps > 55.0 {
@@ -147,12 +154,13 @@ pub fn draw_editor_ui(
                 ui.separator();
 
                 // Entity count
-                ui.label(format!("Entities: {}", scene_entities.iter().count()));
+                ui.label(format!("Entities: {}", queries.scene_entities.iter().count()));
                 ui.separator();
 
                 // Selection
                 if let Some(primary) = selection.primary {
-                    let name = name_query
+                    let name = queries
+                        .names
                         .get(primary)
                         .map(|n| n.as_str().to_string())
                         .unwrap_or_else(|_| format!("{:?}", primary));
@@ -200,7 +208,7 @@ pub fn draw_editor_ui(
                     (BottomTab::Output, "📤 Output"),
                 ];
                 for (tab, label) in tabs {
-                    let selected = *bottom_tab == tab;
+                    let selected = *states.bottom_tab == tab;
                     let bg = if selected {
                         egui::Color32::from_rgb(51, 51, 51)
                     } else {
@@ -218,7 +226,7 @@ pub fn draw_editor_ui(
                             .min_size(egui::vec2(100.0, 0.0)),
                     );
                     if resp.clicked() {
-                        *bottom_tab = tab;
+                        *states.bottom_tab = tab;
                     }
                 }
 
@@ -226,7 +234,7 @@ pub fn draw_editor_ui(
 
                 // Right-aligned per-tab actions
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    match *bottom_tab {
+                    match *states.bottom_tab {
                         BottomTab::Console => {
                             if ui.button("Clear").clicked() {
                                 editor_log.clear();
@@ -252,12 +260,12 @@ pub fn draw_editor_ui(
             ui.separator();
 
             // Tab content (fills remaining space in the bottom panel)
-            match *bottom_tab {
+            match *states.bottom_tab {
                 BottomTab::Console => {
-                    console::draw_content(ui, &editor_log, &mut *console_state);
+                    console::draw_content(ui, &editor_log, &mut *states.console);
                 }
                 BottomTab::Assets => {
-                    asset_browser::draw_content(ui, &asset_db, &project, &mut *asset_browser_state);
+                    asset_browser::draw_content(ui, &asset_db, &project, &mut *states.asset_browser);
                 }
                 BottomTab::Output => {
                     ui.vertical_centered(|ui| {
@@ -277,10 +285,9 @@ pub fn draw_editor_ui(
 
     // ═══════════════════════════════════════════════════════════════
     // 3. SIDE PANELS — hierarchy (left) and inspector (right).
-    //    Drawn after top/bottom panels, before the central panel.
     // ═══════════════════════════════════════════════════════════════
 
-    if panel_visibility.scene_hierarchy {
+    if states.visibility.scene_hierarchy {
         egui::SidePanel::left("hierarchy")
             .default_width(280.0)
             .width_range(180.0..=480.0)
@@ -289,19 +296,19 @@ pub fn draw_editor_ui(
                 scene_hierarchy::draw_content(
                     ui,
                     &mut *selection,
-                    &parents,
-                    &children,
-                    &name_query,
-                    &scene_entities,
-                    &hidden,
-                    &locked,
+                    &queries.parents,
+                    &queries.children,
+                    &queries.names,
+                    &queries.scene_entities,
+                    &queries.hidden,
+                    &queries.locked,
                     &mut commands,
-                    &mut *hierarchy_state,
+                    &mut *states.hierarchy,
                 );
             });
     }
 
-    if panel_visibility.inspector {
+    if states.visibility.inspector {
         egui::SidePanel::right("inspector")
             .default_width(320.0)
             .width_range(220.0..=520.0)
@@ -310,28 +317,26 @@ pub fn draw_editor_ui(
                 inspector::draw_content(
                     ui,
                     &*selection,
-                    &transform_query,
-                    &visibility_query,
-                    &name_query,
+                    &queries.transform,
+                    &queries.visibility,
+                    &queries.names,
                 );
             });
     }
 
     // ═══════════════════════════════════════════════════════════════
     // 4. CENTRAL PANEL (viewport) — MUST BE DRAWN LAST.
-    //    It fills whatever space remains after all other panels.
     // ═══════════════════════════════════════════════════════════════
 
     egui::CentralPanel::default().show(ctx, |ui| {
-        viewport::draw_content(ui, &*selection, &mut *settings, &camera_query);
+        viewport::draw_content(ui, &*selection, &mut *settings, &queries.camera);
     });
 
     // ═══════════════════════════════════════════════════════════════
     // 5. FLOATING WINDOWS — drawn after all panels.
-    //    These appear on top of everything else.
     // ═══════════════════════════════════════════════════════════════
 
-    about::draw_window(ctx, &mut *panel_visibility, &mut *settings);
+    about::draw_window(ctx, &mut *states.visibility, &mut *settings);
 }
 
 /// Handle global keyboard shortcuts.
