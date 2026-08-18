@@ -1,7 +1,8 @@
 //! Component inspector panel content.
 //!
 //! Shows the components of the currently selected entity and lets the user
-//! edit them. Drawn inside a `SidePanel::right` by the master layout system.
+//! edit them. Transform and Name fields are **mutable** — changes write back
+//! to the ECS world immediately.
 
 use crate::editor::state::Selection;
 use bevy::prelude::*;
@@ -11,9 +12,10 @@ use bevy_egui::egui;
 pub fn draw_content(
     ui: &mut egui::Ui,
     selection: &Selection,
-    transform_query: &Query<&Transform>,
+    transform_query: &mut Query<&mut Transform>,
     visibility_query: &Query<&Visibility>,
-    name_query: &Query<&Name>,
+    name_query: &mut Query<&mut Name>,
+    is_edit_mode: bool,
 ) {
     // ---- Header ----
     ui.horizontal(|ui| {
@@ -37,38 +39,47 @@ pub fn draw_content(
         return;
     };
 
-    // ---- Entity header ----
+    // ---- Entity header + editable name ----
     ui.horizontal(|ui| {
         ui.strong("Entity:");
-        let entity_name = name_query
-            .get(primary)
-            .map(|n| n.as_str().to_string())
-            .unwrap_or_else(|_| format!("{:?}", primary));
-        ui.label(&entity_name);
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            ui.label(
-                egui::RichText::new(format!("v{}", primary.index()))
-                    .color(egui::Color32::from_rgb(140, 140, 140))
-                    .small(),
-            );
-        });
+        ui.label(format!("v{}", primary.index()));
     });
+
+    // Editable name field
+    if is_edit_mode {
+        if let Ok(mut name) = name_query.get_mut(primary) {
+            let mut buf = name.as_str().to_string();
+            let resp = ui.add(
+                egui::TextEdit::singleline(&mut buf)
+                    .desired_width(ui.available_width())
+                    .hint_text("Entity name..."),
+            );
+            if resp.changed() {
+                name.set(buf);
+            }
+        }
+    } else {
+        if let Ok(name) = name_query.get(primary) {
+            ui.label(name.as_str());
+        }
+    }
     ui.separator();
 
-    // ---- Transform ----
+    // ---- Transform (editable in edit mode, read-only in play mode) ----
     egui::CollapsingHeader::new("Transform")
         .default_open(true)
         .show(ui, |ui| {
-            if let Ok(transform) = transform_query.get(primary) {
-                draw_transform_editor(ui, transform);
+            if let Ok(mut transform) = transform_query.get_mut(primary) {
+                if is_edit_mode {
+                    draw_transform_editor(ui, &mut transform);
+                } else {
+                    draw_transform_readonly(ui, &transform);
+                }
             } else {
                 ui.label(
                     egui::RichText::new("(no Transform component)")
                         .color(egui::Color32::from_rgb(140, 140, 140)),
                 );
-                if ui.button("+ Add Transform").clicked() {
-                    info!("Add Transform (TODO)");
-                }
             }
         });
 
@@ -90,11 +101,8 @@ pub fn draw_content(
     egui::CollapsingHeader::new("Mesh / Material")
         .default_open(false)
         .show(ui, |ui| {
-            ui.label("Mesh: (none)");
-            ui.label("Material: (none)");
-            if ui.button("+ Add Mesh Renderer").clicked() {
-                info!("Add Mesh (TODO)");
-            }
+            ui.label("Mesh: (edit via Add menu)");
+            ui.label("Material: (edit via Add menu)");
         });
 
     // ---- Physics ----
@@ -103,9 +111,6 @@ pub fn draw_content(
         .show(ui, |ui| {
             ui.label("RigidBody: None");
             ui.label("Collider: None");
-            if ui.button("+ Add RigidBody").clicked() {
-                info!("Add RigidBody (TODO)");
-            }
         });
 
     // ---- Audio ----
@@ -113,9 +118,6 @@ pub fn draw_content(
         .default_open(false)
         .show(ui, |ui| {
             ui.label("Audio Source: None");
-            if ui.button("+ Add Audio Source").clicked() {
-                info!("Add Audio (TODO)");
-            }
         });
 
     // ---- Scripting ----
@@ -123,9 +125,6 @@ pub fn draw_content(
         .default_open(false)
         .show(ui, |ui| {
             ui.label("Scripts: (none attached)");
-            if ui.button("+ Attach Script").clicked() {
-                info!("Attach Script (TODO)");
-            }
         });
 
     // ---- AI ----
@@ -133,64 +132,78 @@ pub fn draw_content(
         .default_open(false)
         .show(ui, |ui| {
             ui.label("AI Agent: None");
-            if ui.button("+ Add AI Agent").clicked() {
-                info!("Add AI Agent (TODO)");
-            }
         });
-
-    // ---- Footer ----
-    ui.separator();
-    ui.horizontal(|ui| {
-        if ui.button("Add Component").clicked() {
-            info!("Add Component (TODO)");
-        }
-    });
 }
 
-/// Draw a Transform editor with Translation / Rotation / Scale fields.
-fn draw_transform_editor(ui: &mut egui::Ui, transform: &Transform) {
-    let translation = transform.translation;
-    let rotation = transform.rotation.to_euler(bevy::math::EulerRot::XYZ);
-    let scale = transform.scale;
+/// Draw an editable Transform editor — writes back to the ECS world.
+fn draw_transform_editor(ui: &mut egui::Ui, transform: &mut Transform) {
+    let mut t = transform.translation;
+    let euler = transform.rotation.to_euler(bevy::math::EulerRot::XYZ);
+    let mut r = Vec3::new(euler.0, euler.1, euler.2);
+    let mut s = transform.scale;
+
+    let mut changed = false;
 
     ui.label("Translation");
-    draw_vec3_row(ui, translation);
+    changed |= draw_vec3_row(ui, &mut t);
     ui.add_space(2.0);
 
     ui.label("Rotation (XYZ, radians)");
-    draw_vec3_row(ui, Vec3::new(rotation.0, rotation.1, rotation.2));
+    changed |= draw_vec3_row(ui, &mut r);
     ui.add_space(2.0);
 
     ui.label("Scale");
-    draw_vec3_row(ui, scale);
+    changed |= draw_vec3_row(ui, &mut s);
+
+    if changed {
+        transform.translation = t;
+        transform.rotation = Quat::from_euler(bevy::math::EulerRot::XYZ, r.x, r.y, r.z);
+        // Guard against zero-scale degenerate matrices
+        transform.scale = s.abs().max(Vec3::splat(0.0001));
+    }
 }
 
-/// Draw a 3-component vector editor as three labeled DragValue inputs.
-fn draw_vec3_row(ui: &mut egui::Ui, value: Vec3) {
-    let mut x = value.x;
-    let mut y = value.y;
-    let mut z = value.z;
+/// Draw a read-only Transform display (during play mode).
+fn draw_transform_readonly(ui: &mut egui::Ui, transform: &Transform) {
+    ui.label(format!(
+        "Translation: ({:.2}, {:.2}, {:.2})",
+        transform.translation.x, transform.translation.y, transform.translation.z
+    ));
+    let euler = transform.rotation.to_euler(bevy::math::EulerRot::XYZ);
+    ui.label(format!(
+        "Rotation: ({:.2}, {:.2}, {:.2})",
+        euler.0, euler.1, euler.2
+    ));
+    ui.label(format!(
+        "Scale: ({:.2}, {:.2}, {:.2})",
+        transform.scale.x, transform.scale.y, transform.scale.z
+    ));
+}
+
+/// Draw a 3-component vector editor. Returns `true` if any value was changed.
+fn draw_vec3_row(ui: &mut egui::Ui, v: &mut Vec3) -> bool {
+    let mut changed = false;
     ui.horizontal(|ui| {
-        ui.add(
-            egui::DragValue::new(&mut x)
-                .speed(0.1)
-                .range(-1000.0..=1000.0)
-                .prefix("X: ")
-                .fixed_decimals(2),
-        );
-        ui.add(
-            egui::DragValue::new(&mut y)
-                .speed(0.1)
-                .range(-1000.0..=1000.0)
-                .prefix("Y: ")
-                .fixed_decimals(2),
-        );
-        ui.add(
-            egui::DragValue::new(&mut z)
-                .speed(0.1)
-                .range(-1000.0..=1000.0)
-                .prefix("Z: ")
-                .fixed_decimals(2),
-        );
+        let prefixes = ["X: ", "Y: ", "Z: "];
+        let vals = [v.x, v.y, v.z];
+        for (i, val) in vals.into_iter().enumerate() {
+            let mut local = val;
+            let resp = ui.add(
+                egui::DragValue::new(&mut local)
+                    .speed(0.1)
+                    .range(-1000.0..=1000.0)
+                    .prefix(prefixes[i])
+                    .fixed_decimals(2),
+            );
+            if resp.changed() {
+                match i {
+                    0 => v.x = local,
+                    1 => v.y = local,
+                    _ => v.z = local,
+                }
+                changed = true;
+            }
+        }
     });
+    changed
 }

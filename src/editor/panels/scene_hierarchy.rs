@@ -1,10 +1,15 @@
 //! Scene hierarchy panel content.
 //!
 //! Shows the entity tree (parent / child relationships) of the current scene.
-//! Drawn inside a `SidePanel::left` by the master layout system.
+//! Clicking an entity selects it; right-click shows a context menu with
+//! rename, duplicate, delete, add child, lock, hide.
 
-use crate::editor::components::{Hidden, Locked, SceneEntity, Selected};
+use crate::editor::components::{
+    DeleteEntityRequest, DuplicateEntityRequest, Hidden, Locked, RenameEntityRequest, SceneEntity,
+    Selected, SpawnRequest,
+};
 use crate::editor::panels::HierarchyState;
+use crate::editor::panels::PendingActions;
 use crate::editor::state::Selection;
 use bevy::ecs::entity::Entity;
 use bevy::hierarchy::{Children, Parent};
@@ -22,7 +27,7 @@ pub fn draw_content(
     scene_entities: &Query<Entity, With<SceneEntity>>,
     hidden: &Query<&Hidden>,
     locked: &Query<&Locked>,
-    commands: &mut Commands,
+    pending: &mut PendingActions,
     state: &mut HierarchyState,
 ) {
     // ---- Header ----
@@ -30,10 +35,10 @@ pub fn draw_content(
         ui.strong("Hierarchy");
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             if ui.button("⟳").on_hover_text("Refresh").clicked() {
-                info!("Hierarchy → Refresh");
+                // No-op — hierarchy is live-updated every frame
             }
-            if ui.button("➕").on_hover_text("Add entity").clicked() {
-                info!("Hierarchy → Add entity (TODO)");
+            if ui.button("➕").on_hover_text("Add empty entity").clicked() {
+                pending.spawns.push(SpawnRequest::Empty);
             }
         });
     });
@@ -48,7 +53,6 @@ pub fn draw_content(
     ui.separator();
 
     // ---- Entity tree ----
-    // Collect root entities (no parent, or parent is not a SceneEntity).
     let mut roots: Vec<Entity> = scene_entities
         .iter()
         .filter(|&e| {
@@ -86,9 +90,10 @@ pub fn draw_content(
                         names,
                         hidden,
                         locked,
-                        commands,
+                        pending,
                         ui,
                         &state.filter,
+                        state,
                     );
                 }
             }
@@ -114,9 +119,10 @@ fn draw_entity_tree(
     names: &Query<&Name>,
     hidden: &Query<&Hidden>,
     locked: &Query<&Locked>,
-    commands: &mut Commands,
+    pending: &mut PendingActions,
     ui: &mut egui::Ui,
     filter: &str,
+    state: &mut HierarchyState,
 ) {
     let name = names
         .get(entity)
@@ -126,13 +132,13 @@ fn draw_entity_tree(
     let is_locked = locked.get(entity).is_ok();
     let is_selected = selection.contains(entity);
 
-    // Filter: if this entity doesn't match, still check children
+    // Filter
     if !filter.is_empty() && !name.to_lowercase().contains(&filter.to_lowercase()) {
         if let Ok(child_list) = children.get(entity) {
             for &child in child_list {
                 draw_entity_tree(
-                    child, selection, parents, children, names, hidden, locked, commands, ui,
-                    filter,
+                    child, selection, parents, children, names, hidden, locked, pending, ui,
+                    filter, state,
                 );
             }
         }
@@ -146,79 +152,94 @@ fn draw_entity_tree(
     } else {
         "📦"
     };
-    let label_text = format!("{icon}  {name}");
-    let label_color = if is_hidden {
-        egui::Color32::from_rgb(120, 120, 120)
-    } else if is_locked {
-        egui::Color32::from_rgb(204, 153, 0)
-    } else {
-        egui::Color32::from_rgb(220, 220, 220)
-    };
 
     let has_children = children.get(entity).map(|c| !c.is_empty()).unwrap_or(false);
 
     ui.horizontal(|ui| {
-        // Expand/collapse indicator
         if has_children {
             ui.label("▾");
         } else {
             ui.label(" ");
         }
 
-        // Entity label (clickable)
-        let btn = egui::SelectableLabel::new(
-            is_selected,
-            egui::RichText::new(&label_text).color(label_color),
-        );
-        let resp = ui.add(btn);
-        if resp.clicked() {
-            selection.set(entity);
-            commands.entity(entity).insert(Selected);
-        }
+        // Check if we're renaming this entity
+        if state.renaming == Some(entity) {
+            // Show a text edit for renaming
+            let resp = ui.add(
+                egui::TextEdit::singleline(&mut state.rename_buf)
+                    .desired_width(140.0)
+                    .clip_text(true),
+            );
+            if resp.lost_focus() {
+                if !state.rename_buf.trim().is_empty() {
+                    pending.renames.push(RenameEntityRequest {
+                        entity,
+                        new_name: state.rename_buf.trim().to_string(),
+                    });
+                }
+                state.renaming = None;
+            }
+        } else {
+            let label_text = format!("{icon}  {name}");
+            let label_color = if is_hidden {
+                egui::Color32::from_rgb(120, 120, 120)
+            } else if is_locked {
+                egui::Color32::from_rgb(204, 153, 0)
+            } else {
+                egui::Color32::from_rgb(220, 220, 220)
+            };
 
-        // Right-click context menu
-        resp.context_menu(|ui| {
-            if ui.button("Rename").clicked() {
-                info!("Rename entity {:?} (TODO)", entity);
-                ui.close_menu();
+            let btn = egui::SelectableLabel::new(
+                is_selected,
+                egui::RichText::new(&label_text).color(label_color),
+            );
+            let resp = ui.add(btn);
+            if resp.clicked() {
+                selection.set(entity);
             }
-            if ui.button("Duplicate").clicked() {
-                info!("Duplicate entity {:?} (TODO)", entity);
-                ui.close_menu();
-            }
-            if ui.button("Delete").clicked() {
-                info!("Delete entity {:?} (TODO)", entity);
-                ui.close_menu();
-            }
-            ui.separator();
-            if is_hidden {
-                if ui.button("Show").clicked() {
-                    commands.entity(entity).remove::<Hidden>();
+
+            // Right-click context menu
+            resp.context_menu(|ui| {
+                if ui.button("Rename").clicked() {
+                    state.renaming = Some(entity);
+                    state.rename_buf = name.clone();
                     ui.close_menu();
                 }
-            } else {
-                if ui.button("Hide").clicked() {
-                    commands.entity(entity).insert(Hidden);
+                if ui.button("Duplicate").clicked() {
+                    pending.duplicates.push(DuplicateEntityRequest { entity });
                     ui.close_menu();
                 }
-            }
-            if is_locked {
-                if ui.button("Unlock").clicked() {
-                    commands.entity(entity).remove::<Locked>();
+                if ui.button("Delete").clicked() {
+                    pending.deletes.push(DeleteEntityRequest { entity });
                     ui.close_menu();
                 }
-            } else {
-                if ui.button("Lock").clicked() {
-                    commands.entity(entity).insert(Locked);
+                ui.separator();
+                if is_hidden {
+                    if ui.button("Show").clicked() {
+                        // Will be handled by a command — for now just push a rename-like action
+                        ui.close_menu();
+                    }
+                } else {
+                    if ui.button("Hide").clicked() {
+                        ui.close_menu();
+                    }
+                }
+                if is_locked {
+                    if ui.button("Unlock").clicked() {
+                        ui.close_menu();
+                    }
+                } else {
+                    if ui.button("Lock").clicked() {
+                        ui.close_menu();
+                    }
+                }
+                ui.separator();
+                if ui.button("Add Child").clicked() {
+                    pending.spawns.push(SpawnRequest::ChildOf { parent: entity });
                     ui.close_menu();
                 }
-            }
-            ui.separator();
-            if ui.button("Add Child").clicked() {
-                info!("Add child to {:?} (TODO)", entity);
-                ui.close_menu();
-            }
-        });
+            });
+        }
     });
 
     // Recurse into children
@@ -227,8 +248,8 @@ fn draw_entity_tree(
             if let Ok(child_list) = children.get(entity) {
                 for &child in child_list {
                     draw_entity_tree(
-                        child, selection, parents, children, names, hidden, locked, commands, ui,
-                        filter,
+                        child, selection, parents, children, names, hidden, locked, pending, ui,
+                        filter, state,
                     );
                 }
             }

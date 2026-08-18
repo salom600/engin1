@@ -49,17 +49,53 @@ impl Plugin for EditorPlugin {
             .init_resource::<panels::ConsoleState>()
             .init_resource::<panels::HierarchyState>()
             .init_resource::<panels::AssetBrowserState>()
+            .init_resource::<panels::PendingActions>()
             .init_resource::<resources::CommandHistory>()
             .init_resource::<resources::EditorCameraState>()
-            .init_resource::<theme::EditorTheme>();
+            .init_resource::<theme::EditorTheme>()
+            .init_resource::<state::CurrentScenePath>()
+            .init_resource::<systems::play_mode::PlayModeSnapshot>();
+
+        // ----- Register types for scene serialization -----
+        app.register_type::<components::SceneEntity>()
+            .register_type::<components::Selected>()
+            .register_type::<components::Hidden>()
+            .register_type::<components::Locked>();
+
+        // ----- Editor events -----
+        app.add_event::<components::SpawnRequest>()
+            .add_event::<components::DeleteEntityRequest>()
+            .add_event::<components::RenameEntityRequest>()
+            .add_event::<components::DuplicateEntityRequest>()
+            .add_event::<components::SaveSceneRequest>()
+            .add_event::<components::LoadSceneRequest>();
 
         // ----- Startup: spawn the editor camera + light + grid -----
         app.add_systems(Startup, setup_editor_camera);
 
         // ----- Master UI layout system -----
-        // This single system draws ALL editor panels in the correct egui order.
-        // It replaces the old per-panel systems that caused layout conflicts.
         app.add_systems(Update, layout::draw_editor_ui);
+
+        // ----- Editor action systems (process PendingActions → real ECS mutations) -----
+        app.add_systems(
+            Update,
+            (
+                flush_pending_actions,
+                systems::spawn::handle_spawn_requests,
+                systems::edit::handle_delete_requests,
+                systems::edit::handle_rename_requests,
+                systems::edit::handle_duplicate_requests,
+                systems::edit::cleanup_selection_after_despawn,
+                systems::save_load::handle_save_requests,
+                systems::save_load::handle_load_requests,
+                systems::save_load::autosave_system,
+            ),
+        );
+
+        // ----- Play mode snapshot/restore -----
+        app.add_systems(OnEnter(EditorState::Playing), systems::play_mode::snapshot_scene_before_play)
+            .add_systems(OnExit(EditorState::Playing), systems::play_mode::restore_scene_after_play)
+            .add_systems(Update, systems::play_mode::play_mode_sync_system);
 
         // ----- Editor logic systems -----
         app.add_systems(
@@ -70,8 +106,6 @@ impl Plugin for EditorPlugin {
                 systems::gizmo::transform_gizmo_system,
                 systems::history::record_undo_system,
                 systems::log::capture_log_system,
-                systems::play_mode::play_mode_sync_system,
-                systems::save_load::autosave_system,
             ),
         );
 
@@ -85,7 +119,7 @@ impl Plugin for EditorPlugin {
         // ----- Asset scan on startup -----
         app.add_systems(Update, systems::assets::rescan_on_startup_system);
 
-        info!("EditorPlugin initialized.");
+        info!("EditorPlugin initialized — functional editor with real ECS mutations.");
     }
 }
 
@@ -157,3 +191,40 @@ fn setup_editor_camera(
 
     info!("Editor scene spawned: camera + light + ground plane");
 }
+
+/// Flush pending editor actions (from the UI) into Bevy events.
+///
+/// The UI system writes to `PendingActions` (a resource) because it can't
+/// hold `EventWriter` params (it's already at the 14-param limit). This
+/// system drains `PendingActions` into the proper event channels, which
+/// the spawn/edit/save/load systems then read.
+fn flush_pending_actions(
+    mut pending: ResMut<panels::PendingActions>,
+    mut spawn_writer: EventWriter<components::SpawnRequest>,
+    mut delete_writer: EventWriter<components::DeleteEntityRequest>,
+    mut rename_writer: EventWriter<components::RenameEntityRequest>,
+    mut duplicate_writer: EventWriter<components::DuplicateEntityRequest>,
+    mut save_writer: EventWriter<components::SaveSceneRequest>,
+    mut load_writer: EventWriter<components::LoadSceneRequest>,
+) {
+    for req in pending.spawns.drain(..) {
+        spawn_writer.send(req);
+    }
+    for req in pending.deletes.drain(..) {
+        delete_writer.send(req);
+    }
+    for req in pending.renames.drain(..) {
+        rename_writer.send(req);
+    }
+    for req in pending.duplicates.drain(..) {
+        duplicate_writer.send(req);
+    }
+    if pending.save {
+        save_writer.send(components::SaveSceneRequest);
+        pending.save = false;
+    }
+    if let Some(path) = pending.load.take() {
+        load_writer.send(components::LoadSceneRequest { path });
+    }
+}
+

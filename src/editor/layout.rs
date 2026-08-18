@@ -27,7 +27,7 @@
 use crate::editor::components::{EditorCamera, Hidden, Locked, SceneEntity, ViewportCamera};
 use crate::editor::panels::{
     about, asset_browser, console, inspector, menu_bar, scene_hierarchy, toolbar, viewport,
-    AssetBrowserState, BottomTab, ConsoleState, HierarchyState, PanelVisibility,
+    AssetBrowserState, BottomTab, ConsoleState, HierarchyState, PanelVisibility, PendingActions,
 };
 use crate::editor::resources::{
     AssetDatabase, CommandHistory, EditorLog, EditorSettings, ProjectResource,
@@ -46,12 +46,12 @@ use bevy_egui::{egui, EguiContexts};
 pub struct EditorQueries<'w, 's> {
     /// Camera query for the viewport overlay.
     pub camera: Query<'w, 's, &'static ViewportCamera, With<EditorCamera>>,
-    /// Transform query for the inspector.
-    pub transform: Query<'w, 's, &'static Transform>,
+    /// Transform query for the inspector (mutable so we can edit it).
+    pub transform: Query<'w, 's, &'static mut Transform>,
     /// Visibility query for the inspector.
     pub visibility: Query<'w, 's, &'static Visibility>,
-    /// Name query for the inspector + hierarchy + status bar.
-    pub names: Query<'w, 's, &'static Name>,
+    /// Name query for the inspector + hierarchy + status bar (mutable for rename).
+    pub names: Query<'w, 's, &'static mut Name>,
     /// Parent query for the hierarchy.
     pub parents: Query<'w, 's, &'static Parent>,
     /// Children query for the hierarchy.
@@ -73,10 +73,12 @@ pub struct PanelStates<'w> {
     pub bottom_tab: ResMut<'w, BottomTab>,
     /// Console filter + command input state.
     pub console: ResMut<'w, ConsoleState>,
-    /// Hierarchy filter text.
+    /// Hierarchy filter text + rename state.
     pub hierarchy: ResMut<'w, HierarchyState>,
     /// Asset browser filter text.
     pub asset_browser: ResMut<'w, AssetBrowserState>,
+    /// Pending editor actions (spawn, delete, rename, save, load).
+    pub pending: ResMut<'w, PendingActions>,
 }
 
 /// The master layout system. Draws ALL editor UI in the correct egui panel order.
@@ -98,7 +100,6 @@ pub fn draw_editor_ui(
     asset_db: Res<AssetDatabase>,
     editor_log: Res<EditorLog>,
     history: Res<CommandHistory>,
-    mut commands: Commands,
     diagnostics: Res<DiagnosticsStore>,
 ) {
     let Some(ctx) = ctxs.try_ctx_mut() else {
@@ -123,9 +124,16 @@ pub fn draw_editor_ui(
         &current_state,
         &mut next_state,
         &mut settings,
+        &mut *states.pending,
     );
 
-    toolbar::draw(ctx, &current_state, &mut next_state, &project);
+    toolbar::draw(
+        ctx,
+        &current_state,
+        &mut next_state,
+        &project,
+        &mut *states.pending,
+    );
 
     // ═══════════════════════════════════════════════════════════════
     // 2. BOTTOM PANELS — status_bar (bottommost), bottom_panel above it.
@@ -311,7 +319,7 @@ pub fn draw_editor_ui(
                     &queries.scene_entities,
                     &queries.hidden,
                     &queries.locked,
-                    &mut commands,
+                    &mut *states.pending,
                     &mut *states.hierarchy,
                 );
             });
@@ -326,9 +334,10 @@ pub fn draw_editor_ui(
                 inspector::draw_content(
                     ui,
                     &*selection,
-                    &queries.transform,
+                    &mut *queries.transform,
                     &queries.visibility,
-                    &queries.names,
+                    &mut *queries.names,
+                    current_state.get().is_edit_mode(),
                 );
             });
     }

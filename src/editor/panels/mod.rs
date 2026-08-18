@@ -94,11 +94,32 @@ impl Default for ConsoleState {
     }
 }
 
-/// Persistent state for the Hierarchy panel (filter text).
+/// Persistent state for the Hierarchy panel (filter text + rename state).
 #[derive(Resource, Default, Debug, Clone)]
 pub struct HierarchyState {
     /// Filter text for the entity list.
     pub filter: String,
+    /// Which entity is currently being renamed (if any).
+    pub renaming: Option<bevy::prelude::Entity>,
+    /// Buffer for the rename text input.
+    pub rename_buf: String,
+}
+
+/// Pending editor actions queued by the UI, to be flushed by a system.
+#[derive(Resource, Default, Debug)]
+pub struct PendingActions {
+    /// Spawn requests
+    pub spawns: Vec<crate::editor::components::SpawnRequest>,
+    /// Delete requests
+    pub deletes: Vec<crate::editor::components::DeleteEntityRequest>,
+    /// Rename requests
+    pub renames: Vec<crate::editor::components::RenameEntityRequest>,
+    /// Duplicate requests
+    pub duplicates: Vec<crate::editor::components::DuplicateEntityRequest>,
+    /// Save scene request
+    pub save: bool,
+    /// Load scene request
+    pub load: Option<std::path::PathBuf>,
 }
 
 /// Persistent state for the Asset Browser panel (filter text).

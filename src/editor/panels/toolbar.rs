@@ -1,8 +1,10 @@
-//! Top toolbar (Play / Pause / Stop / Step / Save / Load / Add).
+//! Top toolbar (Play / Pause / Stop / Save / Load / Add).
 //!
 //! Exposes a single [`draw`] function that creates a
 //! `TopBottomPanel::top("toolbar")`. Called by the master layout system.
 
+use crate::editor::components::{LoadSceneRequest, SaveSceneRequest, SpawnRequest};
+use crate::editor::panels::PendingActions;
 use crate::editor::resources::ProjectResource;
 use crate::editor::state::EditorState;
 use bevy::prelude::*;
@@ -16,6 +18,7 @@ pub fn draw(
     current_state: &State<EditorState>,
     next_state: &mut NextState<EditorState>,
     project: &ProjectResource,
+    pending: &mut PendingActions,
 ) {
     egui::TopBottomPanel::top("toolbar")
         .exact_height(38.0)
@@ -45,6 +48,7 @@ pub fn draw(
                         .fill(play_bg)
                         .min_size(egui::vec2(90.0, 0.0)),
                     )
+                    .on_hover_text("Play / Pause (F5)")
                     .clicked()
                 {
                     if editing || paused {
@@ -67,7 +71,7 @@ pub fn draw(
                         .fill(pause_bg)
                         .min_size(egui::vec2(80.0, 0.0)),
                     )
-                    .on_hover_text("Only available while playing")
+                    .on_hover_text("Pause (F6)")
                     .clicked()
                 {
                     if playing {
@@ -85,6 +89,7 @@ pub fn draw(
                         .fill(egui::Color32::from_rgb(180, 40, 40))
                         .min_size(egui::vec2(70.0, 0.0)),
                     )
+                    .on_hover_text("Stop play mode")
                     .clicked()
                 {
                     if !editing {
@@ -94,43 +99,58 @@ pub fn draw(
 
                 ui.separator();
 
-                // ---- Save / Load ----
+                // ---- Save / Load (real actions!) ----
                 if ui
                     .button("💾 Save")
                     .on_hover_text("Save scene (Ctrl+S)")
                     .clicked()
                 {
-                    info!("Toolbar → Save (TODO)");
+                    pending.save = true;
                 }
                 if ui
                     .button("📂 Load")
-                    .on_hover_text("Load scene (Ctrl+O)")
+                    .on_hover_text("Load scene")
                     .clicked()
                 {
-                    info!("Toolbar → Load (TODO)");
+                    if let Some(file) = rfd::FileDialog::new()
+                        .add_filter("Bevy scene", &["scn.ron", "ron"])
+                        .pick_file()
+                    {
+                        pending.load = Some(file);
+                    }
                 }
 
                 ui.separator();
 
-                // ---- Add entity menu ----
+                // ---- Add entity menu (real spawning!) ----
                 ui.menu_button("➕ Add", |ui| {
                     if ui.button("Cube").clicked() {
-                        info!("Add → Cube (TODO)");
+                        pending.spawns.push(SpawnRequest::Cube);
+                        ui.close_menu();
                     }
                     if ui.button("Sphere").clicked() {
-                        info!("Add → Sphere (TODO)");
+                        pending.spawns.push(SpawnRequest::Sphere);
+                        ui.close_menu();
                     }
                     if ui.button("Plane").clicked() {
-                        info!("Add → Plane (TODO)");
+                        pending.spawns.push(SpawnRequest::Plane);
+                        ui.close_menu();
                     }
                     if ui.button("Camera").clicked() {
-                        info!("Add → Camera (TODO)");
+                        pending.spawns.push(SpawnRequest::Camera);
+                        ui.close_menu();
                     }
-                    if ui.button("Light").clicked() {
-                        info!("Add → Light (TODO)");
+                    if ui.button("Directional Light").clicked() {
+                        pending.spawns.push(SpawnRequest::DirectionalLight);
+                        ui.close_menu();
+                    }
+                    if ui.button("Point Light").clicked() {
+                        pending.spawns.push(SpawnRequest::PointLight);
+                        ui.close_menu();
                     }
                     if ui.button("Empty Entity").clicked() {
-                        info!("Add → Empty (TODO)");
+                        pending.spawns.push(SpawnRequest::Empty);
+                        ui.close_menu();
                     }
                 });
 

@@ -105,3 +105,61 @@ pub struct AIAgent {
     /// Whether the AI is currently enabled.
     pub enabled: bool,
 }
+
+/// What kind of entity to spawn when the user clicks "Add" in the toolbar.
+#[derive(Event, Clone, Debug)]
+pub enum SpawnRequest {
+    /// Spawn a cube primitive.
+    Cube,
+    /// Spawn a sphere primitive.
+    Sphere,
+    /// Spawn a plane primitive.
+    Plane,
+    /// Spawn a camera.
+    Camera,
+    /// Spawn a directional light.
+    DirectionalLight,
+    /// Spawn a point light.
+    PointLight,
+    /// Spawn an empty entity (no mesh, just Transform + Name).
+    Empty,
+    /// Spawn a child of the given parent entity.
+    ChildOf {
+        /// The parent entity to attach the new child to.
+        parent: Entity,
+    },
+}
+
+/// Request to delete an entity (and all its children).
+#[derive(Event, Clone, Debug)]
+pub struct DeleteEntityRequest {
+    /// The entity to delete.
+    pub entity: Entity,
+}
+
+/// Request to rename an entity.
+#[derive(Event, Clone, Debug)]
+pub struct RenameEntityRequest {
+    /// The entity to rename.
+    pub entity: Entity,
+    /// The new name.
+    pub new_name: String,
+}
+
+/// Request to save the current scene to disk.
+#[derive(Event, Clone, Debug, Default)]
+pub struct SaveSceneRequest;
+
+/// Request to load a scene from disk.
+#[derive(Event, Clone, Debug)]
+pub struct LoadSceneRequest {
+    /// The path to load from.
+    pub path: std::path::PathBuf,
+}
+
+/// Request to duplicate an entity.
+#[derive(Event, Clone, Debug)]
+pub struct DuplicateEntityRequest {
+    /// The entity to duplicate.
+    pub entity: Entity,
+}

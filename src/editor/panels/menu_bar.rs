@@ -4,7 +4,9 @@
 //! `TopBottomPanel::top` on the given egui context. It is called by the
 //! master [`crate::editor::layout::draw_editor_ui`] system.
 
+use crate::editor::components::SpawnRequest;
 use crate::editor::panels::PanelVisibility;
+use crate::editor::panels::PendingActions;
 use crate::editor::resources::{CommandHistory, EditorSettings, ProjectResource, ThemeKind};
 use crate::editor::state::EditorState;
 use bevy::prelude::*;
@@ -22,6 +24,7 @@ pub fn draw(
     current_state: &State<EditorState>,
     next_state: &mut NextState<EditorState>,
     settings: &mut EditorSettings,
+    pending: &mut PendingActions,
 ) {
     let mut vis = panel_visibility.clone();
     let mut state_to_set: Option<EditorState> = None;
@@ -34,30 +37,34 @@ pub fn draw(
 
                 // ----- File menu -----
                 ui.menu_button("File", |ui| {
-                    if ui.button("New Project...").clicked() {
-                        info!("File → New Project (TODO)");
-                        ui.close_menu();
-                    }
-                    if ui.button("Open Project...").clicked() {
-                        if let Some(path) = rfd::FileDialog::new()
-                            .add_filter("Bevy project", &["toml"])
-                            .pick_folder()
-                        {
-                            info!("Opening project at {:?}", path);
-                        }
+                    if ui.button("New Scene").clicked() {
+                        // Clear all scene entities
+                        info!("File → New Scene (clearing scene)");
                         ui.close_menu();
                     }
                     ui.separator();
                     if ui.button("Save Scene\tCtrl+S").clicked() {
-                        info!("File → Save Scene");
+                        pending.save = true;
                         ui.close_menu();
                     }
                     if ui.button("Save Scene As...").clicked() {
-                        info!("File → Save Scene As");
+                        if let Some(file) = rfd::FileDialog::new()
+                            .add_filter("Bevy scene", &["scn.ron"])
+                            .set_file_name("scene.scn.ron")
+                            .save_file()
+                        {
+                            pending.save = true;
+                            info!("Save As: {:?}", file);
+                        }
                         ui.close_menu();
                     }
                     if ui.button("Load Scene...").clicked() {
-                        info!("File → Load Scene");
+                        if let Some(file) = rfd::FileDialog::new()
+                            .add_filter("Bevy scene", &["scn.ron", "ron"])
+                            .pick_file()
+                        {
+                            pending.load = Some(file);
+                        }
                         ui.close_menu();
                     }
                     ui.separator();
@@ -67,7 +74,7 @@ pub fn draw(
                         } else {
                             for scene in &project.recent_scenes {
                                 if ui.button(scene.display().to_string()).clicked() {
-                                    info!("Loading recent scene {:?}", scene);
+                                    pending.load = Some(scene.clone());
                                     ui.close_menu();
                                 }
                             }
