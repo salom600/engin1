@@ -1,45 +1,49 @@
-//! Top toolbar (Play / Pause / Stop / Step / Save / Load / Build).
+//! Top toolbar (Play / Pause / Stop / Step / Save / Load / Add).
+//!
+//! Exposes a single [`draw`] function that creates a
+//! `TopBottomPanel::top("toolbar")`. Called by the master layout system.
 
 use crate::editor::resources::ProjectResource;
 use crate::editor::state::EditorState;
 use bevy::prelude::*;
 use bevy_egui::egui;
 
-/// Toolbar draw system.
-pub fn draw_system(
-    mut ctxs: bevy_egui::EguiContexts,
-    current_state: Res<State<EditorState>>,
-    mut next_state: ResMut<NextState<EditorState>>,
-    _project: Res<ProjectResource>,
+/// Draw the toolbar as a `TopBottomPanel::top("toolbar")`.
+///
+/// Must be called AFTER `menu_bar::draw` and BEFORE side/central panels.
+pub fn draw(
+    ctx: &egui::Context,
+    current_state: &State<EditorState>,
+    next_state: &mut NextState<EditorState>,
+    project: &ProjectResource,
 ) {
-    let Some(ctx) = ctxs.try_ctx_mut() else {
-        return;
-    };
-
     egui::TopBottomPanel::top("toolbar")
-        .exact_height(40.0)
+        .exact_height(38.0)
         .show(ctx, |ui| {
             ui.horizontal(|ui| {
-                ui.spacing_mut().button_padding = (10.0, 4.0).into();
+                ui.spacing_mut().button_padding = (8.0, 3.0).into();
+                ui.spacing_mut().item_spacing.x = 4.0;
 
-                // Play / Pause / Stop group
                 let playing = matches!(current_state.get(), EditorState::Playing);
                 let paused = matches!(current_state.get(), EditorState::Paused);
                 let editing = matches!(current_state.get(), EditorState::Editing);
 
-                let play_label = if paused { "Resume" } else { "Play" };
-                let play_color = if playing {
+                // ---- Play / Pause / Stop group ----
+                let play_label = if paused { "▶ Resume" } else { "▶ Play" };
+                let play_bg = if playing {
                     egui::Color32::from_rgb(40, 180, 80)
                 } else {
-                    egui::Color32::from_rgb(40, 140, 60)
+                    egui::Color32::from_rgb(45, 130, 60)
                 };
                 if ui
                     .add(
                         egui::Button::new(
-                            egui::RichText::new(format!("▶ {play_label}"))
-                                .color(egui::Color32::WHITE),
+                            egui::RichText::new(play_label)
+                                .color(egui::Color32::WHITE)
+                                .strong(),
                         )
-                        .fill(play_color),
+                        .fill(play_bg)
+                        .min_size(egui::vec2(90.0, 0.0)),
                     )
                     .clicked()
                 {
@@ -48,18 +52,22 @@ pub fn draw_system(
                     }
                 }
 
-                let pause_color = if paused {
+                let pause_bg = if paused {
                     egui::Color32::from_rgb(204, 153, 0)
                 } else {
-                    egui::Color32::from_rgb(160, 120, 0)
+                    egui::Color32::from_rgb(100, 80, 0)
                 };
                 if ui
                     .add(
                         egui::Button::new(
-                            egui::RichText::new("⏸ Pause").color(egui::Color32::WHITE),
+                            egui::RichText::new("⏸ Pause")
+                                .color(egui::Color32::WHITE)
+                                .strong(),
                         )
-                        .fill(pause_color),
+                        .fill(pause_bg)
+                        .min_size(egui::vec2(80.0, 0.0)),
                     )
+                    .on_disabled_hover_text("Only available while playing")
                     .clicked()
                 {
                     if playing {
@@ -70,9 +78,12 @@ pub fn draw_system(
                 if ui
                     .add(
                         egui::Button::new(
-                            egui::RichText::new("⏹ Stop").color(egui::Color32::WHITE),
+                            egui::RichText::new("⏹ Stop")
+                                .color(egui::Color32::WHITE)
+                                .strong(),
                         )
-                        .fill(egui::Color32::from_rgb(204, 0, 0)),
+                        .fill(egui::Color32::from_rgb(180, 40, 40))
+                        .min_size(egui::vec2(70.0, 0.0)),
                     )
                     .clicked()
                 {
@@ -81,44 +92,20 @@ pub fn draw_system(
                     }
                 }
 
-                if ui.button("⏭ Step").clicked() {
-                    info!("Toolbar → Step (TODO: advance one frame)");
-                }
-
                 ui.separator();
 
-                // Save / Load group
-                if ui.button("💾 Save").clicked() {
+                // ---- Save / Load ----
+                if ui.button("💾 Save").on_hover_text("Save scene (Ctrl+S)").clicked() {
                     info!("Toolbar → Save (TODO)");
                 }
-                if ui.button("📂 Load").clicked() {
+                if ui.button("📂 Load").on_hover_text("Load scene (Ctrl+O)").clicked() {
                     info!("Toolbar → Load (TODO)");
                 }
 
                 ui.separator();
 
-                // Edit tools
-                if ui.button("↩ Undo").clicked() {
-                    info!("Toolbar → Undo (TODO)");
-                }
-                if ui.button("↪ Redo").clicked() {
-                    info!("Toolbar → Redo (TODO)");
-                }
-
-                ui.separator();
-
-                // Build
-                if ui.button("🔨 Build Debug").clicked() {
-                    info!("Toolbar → Build Debug (TODO)");
-                }
-                if ui.button("🚀 Build Release").clicked() {
-                    info!("Toolbar → Build Release (TODO)");
-                }
-
-                ui.separator();
-
-                // Quick-add primitives
-                ui.menu_button("+ Add", |ui| {
+                // ---- Add entity menu ----
+                ui.menu_button("➕ Add", |ui| {
                     if ui.button("Cube").clicked() {
                         info!("Add → Cube (TODO)");
                     }
@@ -141,9 +128,9 @@ pub fn draw_system(
 
                 // Right-aligned project info
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.label(format!("Project: {}", _project.name));
+                    ui.label(format!("Bevy {}", project.bevy_version));
                     ui.separator();
-                    ui.label(format!("Bevy {}", _project.bevy_version));
+                    ui.label(format!("📁 {}", project.name));
                 });
             });
         });

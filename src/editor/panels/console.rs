@@ -1,127 +1,125 @@
-//! Console / log panel.
+//! Console / log panel content.
 //!
-//! Shows the editor log buffer with severity filter, search, and a command
-//! input at the bottom.
+//! Shows the editor log buffer with severity filter and command input.
+//! Drawn inside the bottom tab panel by the master layout system.
 
+use crate::editor::panels::ConsoleState;
 use crate::editor::resources::{EditorLog, LogLevel};
 use bevy::prelude::*;
 use bevy_egui::egui;
 
-/// Console draw system.
-pub fn draw_system(mut ctxs: bevy_egui::EguiContexts, editor_log: Res<EditorLog>) {
-    let Some(ctx) = ctxs.try_ctx_mut() else {
-        return;
-    };
+/// Draw the console content inside the given `ui`.
+pub fn draw_content(ui: &mut egui::Ui, editor_log: &EditorLog, state: &mut ConsoleState) {
+    // ---- Filter bar ----
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = 4.0;
+        ui.checkbox(&mut state.show_trace, "Trace");
+        ui.checkbox(&mut state.show_info, "Info");
+        ui.checkbox(&mut state.show_warn, "Warn");
+        ui.checkbox(&mut state.show_error, "Error");
 
-    // Severity filter flags — these need to persist across frames. In a real
-    // implementation, we'd store them in a `ResMut<ConsoleState>`. For now,
-    // we keep them as local variables that default to "true" each frame.
-    let mut show_trace = true;
-    let mut show_info = true;
-    let mut show_warn = true;
-    let mut show_error = true;
-
-    egui::TopBottomPanel::bottom("console")
-        .default_height(180.0)
-        .height_range(80.0..=520.0)
-        .resizable(true)
-        .show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                ui.strong("Console");
-                ui.separator();
-                ui.checkbox(&mut show_trace, "Trace");
-                ui.checkbox(&mut show_info, "Info");
-                ui.checkbox(&mut show_warn, "Warn");
-                ui.checkbox(&mut show_error, "Error");
-                ui.separator();
-                if ui.button("Clear").clicked() {
-                    editor_log.clear();
-                }
-                if ui.button("Save As...").clicked() {
-                    info!("Save log (TODO)");
-                }
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.label(format!("{} entries", editor_log.len()));
-                });
-            });
-            ui.separator();
-
-            // Log entries
-            egui::ScrollArea::vertical()
-                .auto_shrink([false, false])
-                .stick_to_bottom(true)
-                .show(ui, |ui| {
-                    let entries = editor_log.snapshot();
-                    for entry in entries.iter().rev() {
-                        let visible = match entry.level {
-                            LogLevel::Trace => show_trace,
-                            LogLevel::Info => show_info,
-                            LogLevel::Warn => show_warn,
-                            LogLevel::Error => show_error,
-                        };
-                        if !visible {
-                            continue;
-                        }
-
-                        let color = match entry.level {
-                            LogLevel::Trace => egui::Color32::from_rgb(120, 120, 120),
-                            LogLevel::Info => egui::Color32::from_rgb(220, 220, 220),
-                            LogLevel::Warn => egui::Color32::from_rgb(204, 153, 0),
-                            LogLevel::Error => egui::Color32::from_rgb(204, 0, 0),
-                        };
-
-                        let time = entry
-                            .timestamp
-                            .duration_since(std::time::UNIX_EPOCH)
-                            .map(|d| d.as_secs())
-                            .unwrap_or(0);
-                        let target = entry.target.as_deref().unwrap_or("");
-                        ui.horizontal(|ui| {
-                            ui.colored_label(
-                                egui::Color32::from_rgb(120, 120, 120),
-                                format!("[{:08}", time),
-                            );
-                            ui.colored_label(color, format!("{}]", entry.level.label()));
-                            if !target.is_empty() {
-                                ui.colored_label(
-                                    egui::Color32::from_rgb(80, 140, 200),
-                                    format!("[{}] ", target),
-                                );
-                            }
-                            ui.colored_label(color, &entry.message);
-                        });
-                    }
-                });
-
-            ui.separator();
-            // Command input
-            ui.horizontal(|ui| {
-                ui.label("$");
-                let mut cmd = String::new();
-                let resp = ui.add(
-                    egui::TextEdit::singleline(&mut cmd)
-                        .hint_text("Type a command and press Enter..."),
-                );
-                if resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-                    if !cmd.trim().is_empty() {
-                        editor_log.push(LogLevel::Info, format!("> {}", cmd));
-                        // Simple built-in commands
-                        match cmd.trim() {
-                            "help" => editor_log.push(
-                                LogLevel::Info,
-                                "Available commands: help, clear, version, scan, save",
-                            ),
-                            "clear" => editor_log.clear(),
-                            "version" => editor_log.push(
-                                LogLevel::Info,
-                                format!("Bevy Editor v{}", env!("CARGO_PKG_VERSION")),
-                            ),
-                            "scan" => editor_log.push(LogLevel::Info, "Re-scanning assets..."),
-                            "save" => editor_log.push(LogLevel::Info, "Saving scene..."),
-                            _ => editor_log.push(LogLevel::Warn, format!("Unknown command: {cmd}")),
-                        }
-                    }
-                }
-            });
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            ui.label(
+                egui::RichText::new(format!("{} entries", editor_log.len()))
+                    .color(egui::Color32::from_rgb(140, 140, 140))
+                    .small(),
+            );
         });
+    });
+    ui.separator();
+
+    // ---- Log entries ----
+    egui::ScrollArea::vertical()
+        .auto_shrink([false, false])
+        .stick_to_bottom(true)
+        .show(ui, |ui| {
+            let entries = editor_log.snapshot();
+            if entries.is_empty() {
+                ui.vertical_centered(|ui| {
+                    ui.add_space(20.0);
+                    ui.label(
+                        egui::RichText::new("Console is empty.\nLog messages will appear here.")
+                            .color(egui::Color32::from_rgb(140, 140, 140))
+                            .small(),
+                    );
+                });
+                return;
+            }
+
+            for entry in entries.iter().rev() {
+                let visible = match entry.level {
+                    LogLevel::Trace => state.show_trace,
+                    LogLevel::Info => state.show_info,
+                    LogLevel::Warn => state.show_warn,
+                    LogLevel::Error => state.show_error,
+                };
+                if !visible {
+                    continue;
+                }
+
+                let color = match entry.level {
+                    LogLevel::Trace => egui::Color32::from_rgb(120, 120, 120),
+                    LogLevel::Info => egui::Color32::from_rgb(204, 204, 204),
+                    LogLevel::Warn => egui::Color32::from_rgb(218, 165, 32),
+                    LogLevel::Error => egui::Color32::from_rgb(220, 80, 80),
+                };
+
+                let time = entry
+                    .timestamp
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs())
+                    .unwrap_or(0);
+                let target = entry.target.as_deref().unwrap_or("");
+
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = 4.0;
+                    ui.colored_label(
+                        egui::Color32::from_rgb(100, 100, 100),
+                        format!("[{:08}", time),
+                    );
+                    ui.colored_label(color, format!("{:>5}]", entry.level.label()));
+                    if !target.is_empty() {
+                        ui.colored_label(
+                            egui::Color32::from_rgb(80, 140, 200),
+                            format!("[{}] ", target),
+                        );
+                    }
+                    ui.colored_label(color, &entry.message);
+                });
+            }
+        });
+
+    ui.separator();
+
+    // ---- Command input ----
+    ui.horizontal(|ui| {
+        ui.label(egui::RichText::new("$").color(egui::Color32::from_rgb(100, 180, 100)));
+        let resp = ui.add(
+            egui::TextEdit::singleline(&mut state.command)
+                .hint_text("Type a command (help, clear, version, scan, save) and press Enter...")
+                .desired_width(ui.available_width()),
+        );
+        if resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+            let cmd = state.command.trim().to_string();
+            if !cmd.is_empty() {
+                editor_log.push(LogLevel::Info, format!("> {}", cmd));
+                match cmd.as_str() {
+                    "help" => editor_log.push(
+                        LogLevel::Info,
+                        "Available commands: help, clear, version, scan, save",
+                    ),
+                    "clear" => editor_log.clear(),
+                    "version" => editor_log.push(
+                        LogLevel::Info,
+                        format!("Bevy Editor v{}", env!("CARGO_PKG_VERSION")),
+                    ),
+                    "scan" => editor_log.push(LogLevel::Info, "Re-scanning assets..."),
+                    "save" => editor_log.push(LogLevel::Info, "Saving scene..."),
+                    _ => editor_log.push(LogLevel::Warn, format!("Unknown command: {cmd}")),
+                }
+                state.command.clear();
+                resp.request_focus();
+            }
+        }
+    });
 }

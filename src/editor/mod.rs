@@ -1,21 +1,24 @@
 //! # Editor Plugin
 //!
-//! The [`EditorPlugin`] is the single integration point between the Bevy app and the editor.
-//! It registers every editor-only resource, plugin, system and UI panel.
+//! The [`EditorPlugin`] is the single integration point between the Bevy app
+//! and the editor. It registers every editor-only resource, plugin, system
+//! and UI panel.
 //!
 //! ## What it adds to the [`App`](bevy::app::App)
 //!
 //! 1. **State machine** — [`EditorState`] (Loading / Editing / Playing / Paused).
 //! 2. **Resources** — [`ProjectResource`], [`AssetDatabase`], [`EditorLog`],
 //!    [`Selection`], [`EditorSettings`], [`PanelVisibility`].
-//! 3. **Egui panels** — every panel under [`panels`] is registered as its own system.
-//! 4. **Systems** — camera control, gizmo, picking, save/load, log capture, play-mode sync.
-//! 5. **Subsystems** — physics, audio, scripting, AI bridges (under [`systems`]).
+//! 3. **UI** — the single [`crate::editor::layout::draw_editor_ui`] system
+//!    that draws ALL egui panels in the correct order.
+//! 4. **Systems** — camera control, gizmo, picking, save/load, log capture.
+//! 5. **Subsystems** — physics, audio, scripting, AI bridges.
 
 use bevy::app::App;
 use bevy::prelude::*;
 
 pub mod components;
+pub mod layout;
 pub mod panels;
 pub mod resources;
 pub mod state;
@@ -28,8 +31,6 @@ pub use theme::EditorTheme;
 use resources::{AssetDatabase, EditorLog, EditorSettings, ProjectResource};
 
 /// The editor's main [`Plugin`].
-///
-/// Adding this plugin to an [`App`] turns it into a fully-featured Bevy editor.
 pub struct EditorPlugin;
 
 impl Plugin for EditorPlugin {
@@ -44,6 +45,10 @@ impl Plugin for EditorPlugin {
             .init_resource::<Selection>()
             .init_resource::<EditorSettings>()
             .init_resource::<panels::PanelVisibility>()
+            .init_resource::<panels::BottomTab>()
+            .init_resource::<panels::ConsoleState>()
+            .init_resource::<panels::HierarchyState>()
+            .init_resource::<panels::AssetBrowserState>()
             .init_resource::<resources::CommandHistory>()
             .init_resource::<resources::EditorCameraState>()
             .init_resource::<theme::EditorTheme>();
@@ -51,29 +56,10 @@ impl Plugin for EditorPlugin {
         // ----- Startup: spawn the editor camera + light + grid -----
         app.add_systems(Startup, setup_editor_camera);
 
-        // ----- Per-frame systems (run during editing / playing / paused) -----
-        // All panels share the egui Context and several read PanelVisibility,
-        // so they MUST run in a deterministic chain to avoid Bevy's B0002
-        // "conflicting resource access" panic.
-        app.add_systems(
-            Update,
-            (
-                panels::menu_bar::draw_system,
-                panels::toolbar::draw_system,
-                panels::viewport::draw_system
-                    .run_if(|vis: Res<panels::PanelVisibility>| vis.viewport),
-                panels::scene_hierarchy::draw_system
-                    .run_if(|vis: Res<panels::PanelVisibility>| vis.scene_hierarchy),
-                panels::inspector::draw_system
-                    .run_if(|vis: Res<panels::PanelVisibility>| vis.inspector),
-                panels::asset_browser::draw_system
-                    .run_if(|vis: Res<panels::PanelVisibility>| vis.asset_browser),
-                panels::console::draw_system
-                    .run_if(|vis: Res<panels::PanelVisibility>| vis.console),
-                panels::about::draw_system,
-            )
-                .chain(),
-        );
+        // ----- Master UI layout system -----
+        // This single system draws ALL editor panels in the correct egui order.
+        // It replaces the old per-panel systems that caused layout conflicts.
+        app.add_systems(Update, layout::draw_editor_ui);
 
         // ----- Editor logic systems -----
         app.add_systems(
@@ -130,7 +116,7 @@ fn setup_editor_camera(
         Name::new("Editor Camera"),
     ));
 
-    // Editor-only directional light (illuminates the scene in edit mode)
+    // Editor-only directional light
     commands.spawn((
         DirectionalLightBundle {
             directional_light: DirectionalLight {

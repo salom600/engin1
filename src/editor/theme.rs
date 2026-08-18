@@ -47,12 +47,12 @@ impl EditorTheme {
     /// The default dark theme (VS Code "Dark+" inspired).
     pub fn dark() -> Self {
         Self {
-            bg: Color32::from_rgb(30, 30, 30),
-            panel_bg: Color32::from_rgb(37, 37, 38),
-            widget_bg: Color32::from_rgb(60, 60, 60),
-            widget_hover: Color32::from_rgb(75, 75, 75),
-            fg: Color32::from_rgb(220, 220, 220),
-            fg_muted: Color32::from_rgb(153, 153, 153),
+            bg: Color32::from_rgb(23, 23, 23),
+            panel_bg: Color32::from_rgb(30, 30, 30),
+            widget_bg: Color32::from_rgb(51, 51, 51),
+            widget_hover: Color32::from_rgb(62, 62, 62),
+            fg: Color32::from_rgb(204, 204, 204),
+            fg_muted: Color32::from_rgb(133, 133, 133),
             accent: Color32::from_rgb(0, 122, 204),
             accent_hover: Color32::from_rgb(14, 140, 228),
             warning: Color32::from_rgb(204, 153, 0),
@@ -88,6 +88,10 @@ impl EditorTheme {
         style.visuals = self.to_visuals();
         style.spacing.item_spacing = egui::vec2(6.0, 4.0);
         style.spacing.window_margin = egui::Margin::same(8.0);
+        style.spacing.button_padding = egui::vec2(8.0, 3.0);
+        style.spacing.icon_width = 14.0;
+        style.spacing.icon_spacing = 4.0;
+        style.spacing.indent = 18.0;
         ctx.set_style(style);
     }
 

@@ -1,9 +1,8 @@
 //! Editor UI panels built with `bevy_egui`.
 //!
-//! Each panel is its own Bevy system that draws itself on the shared
-//! [`egui::Context`] every frame. This is more idiomatic than a registry
-//! pattern because each panel declares exactly the queries/resources it
-//! needs, and Bevy's change detection stays granular.
+//! Each panel exposes a `draw(ctx, ...)` or `draw_content(ui, ...)` function
+//! that is called by the master [`crate::editor::layout::draw_editor_ui`]
+//! system in the correct egui panel order.
 //!
 //! ## Available panels
 //!
@@ -29,7 +28,7 @@ pub mod scene_hierarchy;
 pub mod toolbar;
 pub mod viewport;
 
-/// A per-panel visibility flag stored as a resource so the View menu can toggle panels.
+/// Per-panel visibility flags. Toggled via the View menu.
 #[derive(Resource, Debug, Clone, PartialEq)]
 pub struct PanelVisibility {
     /// Viewport panel visible?
@@ -38,10 +37,6 @@ pub struct PanelVisibility {
     pub scene_hierarchy: bool,
     /// Inspector panel visible?
     pub inspector: bool,
-    /// Asset browser panel visible?
-    pub asset_browser: bool,
-    /// Console panel visible?
-    pub console: bool,
     /// About dialog open?
     pub about_open: bool,
     /// Settings window open?
@@ -54,24 +49,61 @@ impl Default for PanelVisibility {
             viewport: true,
             scene_hierarchy: true,
             inspector: true,
-            asset_browser: true,
-            console: true,
             about_open: false,
             settings_open: false,
         }
     }
 }
 
-impl PanelVisibility {
-    /// Toggle a panel by name (used by the View menu).
-    pub fn toggle(&mut self, name: &str) {
-        match name {
-            "Viewport" => self.viewport = !self.viewport,
-            "Scene Hierarchy" => self.scene_hierarchy = !self.scene_hierarchy,
-            "Inspector" => self.inspector = !self.inspector,
-            "Asset Browser" => self.asset_browser = !self.asset_browser,
-            "Console" => self.console = !self.console,
-            _ => {}
+/// Which tab is active in the bottom panel (Console / Assets / Output).
+#[derive(Resource, Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum BottomTab {
+    /// Console tab — log output + command input.
+    #[default]
+    Console,
+    /// Asset browser tab — file list.
+    Assets,
+    /// Output tab — reserved for build output.
+    Output,
+}
+
+/// Persistent state for the Console panel (filter flags + command input).
+#[derive(Resource, Debug, Clone)]
+pub struct ConsoleState {
+    /// Show TRACE-level messages?
+    pub show_trace: bool,
+    /// Show INFO-level messages?
+    pub show_info: bool,
+    /// Show WARN-level messages?
+    pub show_warn: bool,
+    /// Show ERROR-level messages?
+    pub show_error: bool,
+    /// Current command input text.
+    pub command: String,
+}
+
+impl Default for ConsoleState {
+    fn default() -> Self {
+        Self {
+            show_trace: false,
+            show_info: true,
+            show_warn: true,
+            show_error: true,
+            command: String::new(),
         }
     }
+}
+
+/// Persistent state for the Hierarchy panel (filter text).
+#[derive(Resource, Default, Debug, Clone)]
+pub struct HierarchyState {
+    /// Filter text for the entity list.
+    pub filter: String,
+}
+
+/// Persistent state for the Asset Browser panel (filter text).
+#[derive(Resource, Default, Debug, Clone)]
+pub struct AssetBrowserState {
+    /// Filter text for the asset list.
+    pub filter: String,
 }

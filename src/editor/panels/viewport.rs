@@ -1,15 +1,9 @@
-//! 3D viewport panel.
+//! 3D viewport panel content.
 //!
-//! The viewport is the central canvas where the user sees their scene rendered.
-//! In the current architecture, the actual rendering happens on a Bevy camera
-//! (tagged with [`EditorCamera`](crate::editor::components::EditorCamera)) and
-//! this panel just provides the toolbar / status overlay on top of the rendered
-//! image.
-//!
-//! Future improvements:
-//! - Render the camera output to a texture and embed it in this panel.
-//! - Support multiple viewports (top / front / side / perspective like Blender).
-//! - 2D / 3D toggle.
+//! The viewport is drawn inside the `CentralPanel` by the master layout
+//! system. The actual 3D rendering happens on a Bevy camera tagged with
+//! [`EditorCamera`](crate::editor::components::EditorCamera) — egui just
+//! draws overlay UI (toolbar, status, hints) on top of the rendered image.
 
 use crate::editor::components::{EditorCamera, ViewportCamera};
 use crate::editor::resources::EditorSettings;
@@ -17,105 +11,87 @@ use crate::editor::state::Selection;
 use bevy::prelude::*;
 use bevy_egui::egui;
 
-/// Viewport panel system.
-pub fn draw_system(
-    mut ctxs: bevy_egui::EguiContexts,
-    selection: Res<Selection>,
-    mut settings: ResMut<EditorSettings>,
-    camera_query: Query<&ViewportCamera, With<EditorCamera>>,
+/// Draw the viewport content inside the central panel.
+///
+/// This function does NOT create its own `TopBottomPanel` or `CentralPanel` —
+/// the caller (layout system) is responsible for creating the `CentralPanel`
+/// and passing its `ui` to this function.
+pub fn draw_content(
+    ui: &mut egui::Ui,
+    selection: &Selection,
+    settings: &mut EditorSettings,
+    camera_query: &Query<&ViewportCamera, With<EditorCamera>>,
 ) {
-    let Some(ctx) = ctxs.try_ctx_mut() else {
-        return;
-    };
+    // ---- Mini-toolbar at the top of the viewport ----
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = 6.0;
+        ui.strong("Perspective");
+        ui.separator();
+        ui.checkbox(&mut settings.show_grid, "Grid");
+        ui.checkbox(&mut settings.show_axes, "Axes");
+        ui.checkbox(&mut settings.show_gizmo, "Gizmo");
+        ui.checkbox(&mut settings.show_physics_debug, "Physics");
 
-    // Take a snapshot of the settings so we can mutate them through egui closures.
-    let mut show_grid = settings.show_grid;
-    let mut show_axes = settings.show_axes;
-    let mut show_gizmo = settings.show_gizmo;
-    let mut show_physics_debug = settings.show_physics_debug;
-
-    // The "viewport" toolbar — runs along the top of the editor area.
-    egui::TopBottomPanel::top("viewport_toolbar")
-        .exact_height(28.0)
-        .show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                ui.strong("Perspective");
-                ui.separator();
-                ui.checkbox(&mut show_grid, "Grid");
-                ui.checkbox(&mut show_axes, "Axes");
-                ui.checkbox(&mut show_gizmo, "Gizmo");
-                ui.checkbox(&mut show_physics_debug, "Physics Debug");
-
-                ui.separator();
-                if let Some(cam) = camera_query.iter().next() {
-                    ui.label(format!(
-                        "Cam: target=({:.1}, {:.1}, {:.1}) dist={:.1}",
-                        cam.target.x, cam.target.y, cam.target.z, cam.distance
-                    ));
-                }
-
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.label("WASD: move  |  QE: up/down  |  RMB+drag: orbit  |  Scroll: zoom");
-                });
-            });
-        });
-
-    // Bottom status bar — shows selection info + camera info.
-    egui::TopBottomPanel::bottom("viewport_status")
-        .exact_height(22.0)
-        .show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                ui.label(format!("Selected: {} entities", selection.entities.len()));
-                ui.separator();
-                if let Some(primary) = selection.primary {
-                    ui.label(format!("Primary: {:?}", primary));
-                } else {
-                    ui.label("Nothing selected");
-                }
-                ui.separator();
-                if let Some(cam) = camera_query.iter().next() {
-                    ui.label(format!(
-                        "Pos: ({:.1}, {:.1}, {:.1})",
-                        cam.position().x,
-                        cam.position().y,
-                        cam.position().z
-                    ));
-                }
-            });
-        });
-
-    // The central area: Bevy's rendering output shows through here.
-    egui::CentralPanel::default().show(ctx, |ui| {
-        // Draw a faint border / background to mark the viewport boundary.
-        let (rect, _) = ui.allocate_exact_size(ui.available_size(), egui::Sense::hover());
-        let painter = ui.painter_at(rect);
-        painter.rect_filled(
-            rect,
-            4.0,
-            egui::Color32::from_rgba_unmultiplied(15, 15, 15, 60),
-        );
-
-        // Show a hint when nothing is selected
-        if selection.is_empty() {
-            ui.painter().text(
-                rect.center(),
-                egui::Align2::CENTER_CENTER,
-                "Click an entity to select it",
-                egui::FontId::proportional(14.0),
-                egui::Color32::from_rgb(120, 120, 120),
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            ui.label(
+                egui::RichText::new("RMB: orbit  |  MMB: pan  |  Wheel: zoom  |  WASD: move")
+                    .color(egui::Color32::from_rgb(140, 140, 140))
+                    .small(),
             );
-        }
+        });
     });
+    ui.separator();
 
-    // Write back any changed settings.
-    if settings.show_grid != show_grid
-        || settings.show_axes != show_axes
-        || settings.show_gizmo != show_gizmo
-        || settings.show_physics_debug != show_physics_debug
-    {
-        settings.show_grid = show_grid;
-        settings.show_axes = show_axes;
-        settings.show_gizmo = show_gizmo;
-        settings.show_physics_debug = show_physics_debug;
+    // ---- Central rendering area ----
+    // Bevy's camera renders to the whole window, so the 3D scene shows through
+    // here. We just draw an overlay border and some hints.
+    let (rect, _response) = ui.allocate_exact_size(ui.available_size(), egui::Sense::hover());
+
+    // Draw a subtle background to mark the viewport area
+    ui.painter().rect_filled(
+        rect,
+        2.0,
+        egui::Color32::from_rgba_unmultiplied(20, 20, 25, 40),
+    );
+
+    // Camera info overlay (top-right)
+    if let Some(cam) = camera_query.iter().next() {
+        let pos = cam.position();
+        let info = format!(
+            "Camera\nPos: ({:.1}, {:.1}, {:.1})\nTarget: ({:.1}, {:.1}, {:.1})\nDist: {:.1}",
+            pos.x, pos.y, pos.z, cam.target.x, cam.target.y, cam.target.z, cam.distance
+        );
+        ui.painter().text(
+            rect.right_top() + egui::vec2(-12.0, 12.0),
+            egui::Align2::RIGHT_TOP,
+            &info,
+            egui::FontId::monospace(11.0),
+            egui::Color32::from_rgb(180, 180, 180),
+        );
+    }
+
+    // Selection info overlay (bottom-left)
+    let sel_text = if selection.is_empty() {
+        "No entity selected".to_string()
+    } else {
+        format!("{} entit{} selected", selection.entities.len(), if selection.entities.len() == 1 { "y" } else { "ies" })
+    };
+    ui.painter().text(
+        rect.left_bottom() + egui::vec2(12.0, -12.0),
+        egui::Align2::LEFT_BOTTOM,
+        &sel_text,
+        egui::FontId::proportional(12.0),
+        egui::Color32::from_rgb(140, 140, 140),
+    );
+
+    // Center hint when nothing selected
+    if selection.is_empty() {
+        ui.painter().text(
+            rect.center(),
+            egui::Align2::CENTER_CENTER,
+            "Click an entity in the Hierarchy to select it",
+            egui::FontId::proportional(14.0),
+            egui::Color32::from_rgb(100, 100, 100),
+        );
     }
 }
