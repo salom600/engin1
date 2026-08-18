@@ -52,6 +52,9 @@ impl Plugin for EditorPlugin {
         app.add_systems(Startup, setup_editor_camera);
 
         // ----- Per-frame systems (run during editing / playing / paused) -----
+        // All panels share the egui Context and several read PanelVisibility,
+        // so they MUST run in a deterministic chain to avoid Bevy's B0002
+        // "conflicting resource access" panic.
         app.add_systems(
             Update,
             (
@@ -68,7 +71,8 @@ impl Plugin for EditorPlugin {
                 panels::console::draw_system
                     .run_if(|vis: Res<panels::PanelVisibility>| vis.console),
                 panels::about::draw_system,
-            ),
+            )
+                .chain(),
         );
 
         // ----- Editor logic systems -----

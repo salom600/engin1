@@ -9,8 +9,7 @@ use bevy_egui::egui;
 /// standard entries (File / Edit / View / Asset / Build / Help).
 pub fn draw_system(
     mut ctxs: bevy_egui::EguiContexts,
-    panel_visibility: Res<crate::editor::panels::PanelVisibility>,
-    mut panel_visibility_mut: ResMut<crate::editor::panels::PanelVisibility>,
+    mut panel_visibility: ResMut<crate::editor::panels::PanelVisibility>,
     project: Res<ProjectResource>,
     history: Res<CommandHistory>,
     current_state: Res<State<EditorState>>,
@@ -21,7 +20,8 @@ pub fn draw_system(
         return;
     };
 
-    // Clone visibility flags so we can mutate them through a closure.
+    // Work on a local clone so egui closures can mutate it freely,
+    // then write back to the resource at the end of the frame.
     let mut vis = panel_visibility.clone();
     let mut state_to_set: Option<EditorState> = None;
 
@@ -236,7 +236,7 @@ pub fn draw_system(
 
     // Apply visibility changes back to the resource.
     if vis != *panel_visibility {
-        *panel_visibility_mut = vis;
+        *panel_visibility = vis;
     }
 
     // Apply state changes.
