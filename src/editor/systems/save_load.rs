@@ -108,10 +108,13 @@ pub fn handle_load_requests(world: &mut World) {
 
         let scene_result = world.resource_scope(|_world, type_registry: Mut<AppTypeRegistry>| {
             let registry = type_registry.read();
-            let mut deserializer = Deserializer::from_str(&ron_string).map_err(|e| e.to_string())?;
-            SceneDeserializer { type_registry: &registry }
-                .deserialize(&mut deserializer)
-                .map_err(|e| e.to_string())
+            let mut deserializer =
+                Deserializer::from_str(&ron_string).map_err(|e| e.to_string())?;
+            SceneDeserializer {
+                type_registry: &registry,
+            }
+            .deserialize(&mut deserializer)
+            .map_err(|e| e.to_string())
         });
 
         let scene = match scene_result {
