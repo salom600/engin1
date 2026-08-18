@@ -37,13 +37,15 @@ pub fn handle_save_requests(
         .extract_entities(entities.into_iter())
         .build();
 
-    let ron_string = match scene.serialize(&type_registry) {
+    let registry = type_registry.read();
+    let ron_string = match scene.serialize(&registry) {
         Ok(s) => s,
         Err(e) => {
             error!("Failed to serialize scene: {e}");
             return;
         }
     };
+    drop(registry);
 
     let path = current_path.0.clone().unwrap_or_else(|| {
         let dir = std::env::current_dir().unwrap_or_default();
@@ -69,21 +71,23 @@ pub fn handle_load_requests(
     mut current_path: ResMut<CurrentScenePath>,
 ) {
     for req in events.read() {
-        let bytes = match std::fs::read(&req.path) {
-            Ok(b) => b,
+        let ron_string = match std::fs::read_to_string(&req.path) {
+            Ok(s) => s,
             Err(e) => {
                 error!("Failed to read scene file {:?}: {e}", req.path);
                 continue;
             }
         };
 
-        let scene = match DynamicScene::from_bytes(&type_registry, &bytes) {
+        let registry = type_registry.read();
+        let scene = match DynamicScene::from_ron(&registry, &ron_string) {
             Ok(s) => s,
             Err(e) => {
                 error!("Failed to parse scene RON: {e}");
                 continue;
             }
         };
+        drop(registry);
 
         // Clear existing SceneEntity entities before loading
         let to_despawn: Vec<Entity> = world
@@ -95,7 +99,7 @@ pub fn handle_load_requests(
         }
 
         // Spawn all entities from the scene into the world
-        scene.write_to_world(world, &type_registry);
+        scene.write_to_world(world);
         current_path.0 = Some(req.path.clone());
         info!("Loaded scene from {:?}", req.path);
     }

@@ -10,34 +10,30 @@ use bevy::scene::{DynamicScene, DynamicSceneBuilder};
 pub struct PlayModeSnapshot(pub Option<DynamicScene>);
 
 /// Take a snapshot of the scene when entering Play mode.
-pub fn snapshot_scene_before_play(
-    world: &mut World,
-    type_registry: Res<AppTypeRegistry>,
-    mut snapshot: ResMut<PlayModeSnapshot>,
-) {
+pub fn snapshot_scene_before_play(world: &mut World) {
     let entities: Vec<Entity> = world
         .query_filtered::<Entity, With<SceneEntity>>()
         .iter(world)
         .collect();
 
-    snapshot.0 = Some(
-        DynamicSceneBuilder::from_world(world)
-            .extract_entities(entities.into_iter())
-            .build(),
-    );
-    info!(
-        "Play mode: scene snapshot taken ({} entities)",
-        entities.len()
-    );
+    let scene = DynamicSceneBuilder::from_world(world)
+        .extract_entities(entities.into_iter())
+        .build();
+
+    world.resource_scope(|_world, mut snapshot: Mut<PlayModeSnapshot>| {
+        snapshot.0 = Some(scene);
+    });
+
+    info!("Play mode: scene snapshot taken ({} entities)", entities.len());
 }
 
 /// Restore the scene snapshot when exiting Play mode.
-pub fn restore_scene_after_play(
-    world: &mut World,
-    type_registry: Res<AppTypeRegistry>,
-    mut snapshot: ResMut<PlayModeSnapshot>,
-) {
-    let Some(scene) = snapshot.0.take() else {
+pub fn restore_scene_after_play(world: &mut World) {
+    let scene = world.resource_scope(|_world, mut snapshot: Mut<PlayModeSnapshot>| {
+        snapshot.0.take()
+    });
+
+    let Some(scene) = scene else {
         return;
     };
 
@@ -51,7 +47,7 @@ pub fn restore_scene_after_play(
     }
 
     // Restore from snapshot
-    scene.write_to_world(world, &type_registry);
+    scene.write_to_world(world);
     info!("Play mode: scene restored from snapshot.");
 }
 
@@ -62,6 +58,5 @@ pub fn play_mode_sync_system(
     _time: Res<Time>,
 ) {
     // The state machine handles transitions automatically.
-    // This system is a hook for any additional per-frame play-mode logic.
     let _ = (_current_state, _next_state, _time);
 }

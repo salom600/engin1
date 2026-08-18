@@ -334,9 +334,9 @@ pub fn draw_editor_ui(
                 inspector::draw_content(
                     ui,
                     &*selection,
-                    &mut *queries.transform,
+                    &mut queries.transform,
                     &queries.visibility,
-                    &mut *queries.names,
+                    &mut queries.names,
                     current_state.get().is_edit_mode(),
                 );
             });

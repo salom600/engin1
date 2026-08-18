@@ -76,7 +76,7 @@ pub fn handle_duplicate_requests(
 /// Clean up selection when entities are despawned.
 pub fn cleanup_selection_after_despawn(
     mut selection: ResMut<Selection>,
-    removed: RemovedComponents<SceneEntity>,
+    mut removed: RemovedComponents<SceneEntity>,
 ) {
     for entity in removed.read() {
         selection.entities.retain(|&e| e != entity);

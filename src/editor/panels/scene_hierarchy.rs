@@ -23,7 +23,7 @@ pub fn draw_content(
     selection: &mut Selection,
     parents: &Query<&Parent>,
     children: &Query<&Children>,
-    names: &Query<&Name>,
+    names: &Query<&mut Name>,
     scene_entities: &Query<Entity, With<SceneEntity>>,
     hidden: &Query<&Hidden>,
     locked: &Query<&Locked>,
@@ -81,6 +81,7 @@ pub fn draw_content(
                     ui.label("in the toolbar to create one.");
                 });
             } else {
+                let filter = state.filter.clone();
                 for entity in roots {
                     draw_entity_tree(
                         entity,
@@ -92,7 +93,7 @@ pub fn draw_content(
                         locked,
                         pending,
                         ui,
-                        &state.filter,
+                        &filter,
                         state,
                     );
                 }
@@ -116,7 +117,7 @@ fn draw_entity_tree(
     selection: &mut Selection,
     parents: &Query<&Parent>,
     children: &Query<&Children>,
-    names: &Query<&Name>,
+    names: &Query<&mut Name>,
     hidden: &Query<&Hidden>,
     locked: &Query<&Locked>,
     pending: &mut PendingActions,

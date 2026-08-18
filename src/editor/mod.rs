@@ -77,6 +77,7 @@ impl Plugin for EditorPlugin {
         app.add_systems(Update, layout::draw_editor_ui);
 
         // ----- Editor action systems (process PendingActions → real ECS mutations) -----
+        // Non-exclusive systems can run in parallel:
         app.add_systems(
             Update,
             (
@@ -86,13 +87,14 @@ impl Plugin for EditorPlugin {
                 systems::edit::handle_rename_requests,
                 systems::edit::handle_duplicate_requests,
                 systems::edit::cleanup_selection_after_despawn,
-                systems::save_load::handle_save_requests,
-                systems::save_load::handle_load_requests,
                 systems::save_load::autosave_system,
             ),
         );
+        // Exclusive systems (&mut World) must be registered separately:
+        app.add_systems(Update, systems::save_load::handle_save_requests);
+        app.add_systems(Update, systems::save_load::handle_load_requests);
 
-        // ----- Play mode snapshot/restore -----
+        // ----- Play mode snapshot/restore (exclusive systems) -----
         app.add_systems(
             OnEnter(EditorState::Playing),
             systems::play_mode::snapshot_scene_before_play,
