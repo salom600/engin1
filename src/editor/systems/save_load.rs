@@ -113,7 +113,7 @@ pub fn handle_load_requests(world: &mut World) {
             let scene_deserializer = SceneDeserializer {
                 type_registry: &registry,
             };
-            serde::de::DeserializeSeed::deserialize(&scene_deserializer, &mut deserializer)
+            serde::de::DeserializeSeed::deserialize(scene_deserializer, &mut deserializer)
                 .map_err(|e| e.to_string())
         });
 
