@@ -4,6 +4,7 @@ use crate::editor::components::SceneEntity;
 use crate::editor::state::EditorState;
 use bevy::prelude::*;
 use bevy::scene::{DynamicScene, DynamicSceneBuilder};
+use bevy::utils::HashMap;
 
 /// Resource holding the scene snapshot taken before entering play mode.
 #[derive(Resource, Default)]
@@ -16,6 +17,7 @@ pub fn snapshot_scene_before_play(world: &mut World) {
         .iter(world)
         .collect();
 
+    let entity_count = entities.len();
     let scene = DynamicSceneBuilder::from_world(world)
         .extract_entities(entities.into_iter())
         .build();
@@ -24,7 +26,7 @@ pub fn snapshot_scene_before_play(world: &mut World) {
         snapshot.0 = Some(scene);
     });
 
-    info!("Play mode: scene snapshot taken ({} entities)", entities.len());
+    info!("Play mode: scene snapshot taken ({} entities)", entity_count);
 }
 
 /// Restore the scene snapshot when exiting Play mode.
@@ -47,7 +49,8 @@ pub fn restore_scene_after_play(world: &mut World) {
     }
 
     // Restore from snapshot
-    scene.write_to_world(world);
+    let mut entity_map = HashMap::new();
+    scene.write_to_world(world, &mut entity_map);
     info!("Play mode: scene restored from snapshot.");
 }
 
@@ -57,6 +60,5 @@ pub fn play_mode_sync_system(
     _next_state: ResMut<NextState<EditorState>>,
     _time: Res<Time>,
 ) {
-    // The state machine handles transitions automatically.
     let _ = (_current_state, _next_state, _time);
 }

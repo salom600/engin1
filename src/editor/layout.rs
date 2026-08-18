@@ -95,7 +95,7 @@ pub fn draw_editor_ui(
     mut settings: ResMut<EditorSettings>,
     current_state: Res<State<EditorState>>,
     mut next_state: ResMut<NextState<EditorState>>,
-    queries: EditorQueries,
+    mut queries: EditorQueries,
     project: Res<ProjectResource>,
     asset_db: Res<AssetDatabase>,
     editor_log: Res<EditorLog>,

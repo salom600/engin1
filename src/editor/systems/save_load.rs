@@ -7,21 +7,24 @@ use crate::editor::components::SceneEntity;
 use crate::editor::state::CurrentScenePath;
 use bevy::prelude::*;
 use bevy::scene::{DynamicScene, DynamicSceneBuilder};
+use bevy::utils::HashMap;
 use std::io::Write;
 
 /// Handle save scene requests — serializes all SceneEntity entities to disk.
-pub fn handle_save_requests(
-    world: &mut World,
-    mut events: EventReader<crate::editor::components::SaveSceneRequest>,
-    type_registry: Res<AppTypeRegistry>,
-    current_path: Res<CurrentScenePath>,
-) {
-    if events.read().next().is_none() {
+/// This is an exclusive system (takes &mut World) so it must be registered alone.
+pub fn handle_save_requests(world: &mut World) {
+    // Check for save events using resource_scope
+    let should_save = world.resource_scope(|_world, mut events: Mut<bevy::ecs::event::Events<crate::editor::components::SaveSceneRequest>>| {
+        let has_events = !events.is_empty();
+        events.clear();
+        has_events
+    });
+
+    if !should_save {
         return;
     }
-    events.clear();
 
-    // Collect all SceneEntity entities (the user's content, not editor-only entities)
+    // Collect all SceneEntity entities
     let entities: Vec<Entity> = world
         .query_filtered::<Entity, With<SceneEntity>>()
         .iter(world)
@@ -32,64 +35,77 @@ pub fn handle_save_requests(
         return;
     }
 
-    // Build the DynamicScene
+    let entity_count = entities.len();
     let scene = DynamicSceneBuilder::from_world(world)
         .extract_entities(entities.into_iter())
         .build();
 
-    let registry = type_registry.read();
-    let ron_string = match scene.serialize(&registry) {
+    let (ron_string, current_path) = world.resource_scope(|_world, type_registry: Mut<AppTypeRegistry>| {
+        let registry = type_registry.read();
+        let ron = scene.serialize(&registry);
+        let path = _world.resource::<CurrentScenePath>().0.clone();
+        (ron, path)
+    });
+
+    let ron_string = match ron_string {
         Ok(s) => s,
         Err(e) => {
             error!("Failed to serialize scene: {e}");
             return;
         }
     };
-    drop(registry);
 
-    let path = current_path.0.clone().unwrap_or_else(|| {
+    let path = current_path.unwrap_or_else(|| {
         let dir = std::env::current_dir().unwrap_or_default();
         dir.join("assets/scenes/scene.scn.ron")
     });
 
-    // Ensure the parent directory exists
     if let Some(parent) = path.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
 
     match std::fs::File::create(&path).and_then(|mut f| f.write_all(ron_string.as_bytes())) {
-        Ok(_) => info!("Scene saved to {:?}", path),
+        Ok(_) => info!("Scene saved to {:?} ({} entities)", path, entity_count),
         Err(e) => error!("Failed to write scene file: {e}"),
     }
 }
 
 /// Handle load scene requests — loads a .scn.ron file and spawns its entities.
-pub fn handle_load_requests(
-    world: &mut World,
-    mut events: EventReader<crate::editor::components::LoadSceneRequest>,
-    type_registry: Res<AppTypeRegistry>,
-    mut current_path: ResMut<CurrentScenePath>,
-) {
-    for req in events.read() {
-        let ron_string = match std::fs::read_to_string(&req.path) {
+/// This is an exclusive system.
+pub fn handle_load_requests(world: &mut World) {
+    let load_paths: Vec<std::path::PathBuf> = world.resource_scope(|_world, mut events: Mut<bevy::ecs::event::Events<crate::editor::components::LoadSceneRequest>>| {
+        let paths: Vec<_> = events.drain().map(|e| e.path).collect();
+        paths
+    });
+
+    if load_paths.is_empty() {
+        return;
+    }
+
+    for path in load_paths {
+        let ron_string = match std::fs::read_to_string(&path) {
             Ok(s) => s,
             Err(e) => {
-                error!("Failed to read scene file {:?}: {e}", req.path);
+                error!("Failed to read scene file {:?}: {e}", path);
                 continue;
             }
         };
 
-        let registry = type_registry.read();
-        let scene = match DynamicScene::from_ron(&registry, &ron_string) {
+        let scene_result = world.resource_scope(|_world, type_registry: Mut<AppTypeRegistry>| {
+            let registry = type_registry.read();
+            // In Bevy 0.14, use ron::de::from_str with the registry
+            ron::de::from_str::<DynamicScene>(&ron_string)
+        });
+
+        let scene = match scene_result {
             Ok(s) => s,
             Err(e) => {
                 error!("Failed to parse scene RON: {e}");
                 continue;
             }
         };
-        drop(registry);
 
-        // Clear existing SceneEntity entities before loading
+        // Clear existing SceneEntity entities
         let to_despawn: Vec<Entity> = world
             .query_filtered::<Entity, With<SceneEntity>>()
             .iter(world)
@@ -99,11 +115,11 @@ pub fn handle_load_requests(
         }
 
         // Spawn all entities from the scene into the world
-        scene.write_to_world(world);
-        current_path.0 = Some(req.path.clone());
-        info!("Loaded scene from {:?}", req.path);
+        let mut entity_map = HashMap::new();
+        scene.write_to_world(world, &mut entity_map);
+        world.resource_mut::<CurrentScenePath>().0 = Some(path.clone());
+        info!("Loaded scene from {:?}", path);
     }
-    events.clear();
 }
 
 /// Autosave the current scene on a configurable interval.
