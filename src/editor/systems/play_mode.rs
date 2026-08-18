@@ -2,9 +2,9 @@
 
 use crate::editor::components::SceneEntity;
 use crate::editor::state::EditorState;
+use bevy::ecs::entity::EntityHashMap;
 use bevy::prelude::*;
 use bevy::scene::{DynamicScene, DynamicSceneBuilder};
-use bevy::utils::HashMap;
 
 /// Resource holding the scene snapshot taken before entering play mode.
 #[derive(Resource, Default)]
@@ -51,7 +51,7 @@ pub fn restore_scene_after_play(world: &mut World) {
     }
 
     // Restore from snapshot
-    let mut entity_map = HashMap::new();
+    let mut entity_map = EntityHashMap::new();
     scene.write_to_world(world, &mut entity_map);
     info!("Play mode: scene restored from snapshot.");
 }

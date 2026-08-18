@@ -5,9 +5,11 @@
 
 use crate::editor::components::SceneEntity;
 use crate::editor::state::CurrentScenePath;
+use bevy::ecs::entity::EntityHashMap;
 use bevy::prelude::*;
+use bevy::reflect::serde::SceneDeserializer;
 use bevy::scene::{DynamicScene, DynamicSceneBuilder};
-use bevy::utils::HashMap;
+use ron::de::Deserializer;
 use std::io::Write;
 
 /// Handle save scene requests — serializes all SceneEntity entities to disk.
@@ -106,8 +108,10 @@ pub fn handle_load_requests(world: &mut World) {
 
         let scene_result = world.resource_scope(|_world, type_registry: Mut<AppTypeRegistry>| {
             let registry = type_registry.read();
-            // In Bevy 0.14, use ron::de::from_str with the registry
-            ron::de::from_str::<DynamicScene>(&ron_string)
+            let mut deserializer = Deserializer::from_str(&ron_string).map_err(|e| e.to_string())?;
+            SceneDeserializer { type_registry: &registry }
+                .deserialize(&mut deserializer)
+                .map_err(|e| e.to_string())
         });
 
         let scene = match scene_result {
@@ -128,7 +132,7 @@ pub fn handle_load_requests(world: &mut World) {
         }
 
         // Spawn all entities from the scene into the world
-        let mut entity_map = HashMap::new();
+        let mut entity_map = EntityHashMap::new();
         scene.write_to_world(world, &mut entity_map);
         world.resource_mut::<CurrentScenePath>().0 = Some(path.clone());
         info!("Loaded scene from {:?}", path);
