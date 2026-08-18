@@ -26,14 +26,16 @@ pub fn snapshot_scene_before_play(world: &mut World) {
         snapshot.0 = Some(scene);
     });
 
-    info!("Play mode: scene snapshot taken ({} entities)", entity_count);
+    info!(
+        "Play mode: scene snapshot taken ({} entities)",
+        entity_count
+    );
 }
 
 /// Restore the scene snapshot when exiting Play mode.
 pub fn restore_scene_after_play(world: &mut World) {
-    let scene = world.resource_scope(|_world, mut snapshot: Mut<PlayModeSnapshot>| {
-        snapshot.0.take()
-    });
+    let scene =
+        world.resource_scope(|_world, mut snapshot: Mut<PlayModeSnapshot>| snapshot.0.take());
 
     let Some(scene) = scene else {
         return;

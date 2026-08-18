@@ -14,11 +14,17 @@ use std::io::Write;
 /// This is an exclusive system (takes &mut World) so it must be registered alone.
 pub fn handle_save_requests(world: &mut World) {
     // Check for save events using resource_scope
-    let should_save = world.resource_scope(|_world, mut events: Mut<bevy::ecs::event::Events<crate::editor::components::SaveSceneRequest>>| {
-        let has_events = !events.is_empty();
-        events.clear();
-        has_events
-    });
+    let should_save =
+        world.resource_scope(
+            |_world,
+             mut events: Mut<
+                bevy::ecs::event::Events<crate::editor::components::SaveSceneRequest>,
+            >| {
+                let has_events = !events.is_empty();
+                events.clear();
+                has_events
+            },
+        );
 
     if !should_save {
         return;
@@ -40,12 +46,13 @@ pub fn handle_save_requests(world: &mut World) {
         .extract_entities(entities.into_iter())
         .build();
 
-    let (ron_string, current_path) = world.resource_scope(|_world, type_registry: Mut<AppTypeRegistry>| {
-        let registry = type_registry.read();
-        let ron = scene.serialize(&registry);
-        let path = _world.resource::<CurrentScenePath>().0.clone();
-        (ron, path)
-    });
+    let (ron_string, current_path) =
+        world.resource_scope(|_world, type_registry: Mut<AppTypeRegistry>| {
+            let registry = type_registry.read();
+            let ron = scene.serialize(&registry);
+            let path = _world.resource::<CurrentScenePath>().0.clone();
+            (ron, path)
+        });
 
     let ron_string = match ron_string {
         Ok(s) => s,
@@ -73,10 +80,16 @@ pub fn handle_save_requests(world: &mut World) {
 /// Handle load scene requests — loads a .scn.ron file and spawns its entities.
 /// This is an exclusive system.
 pub fn handle_load_requests(world: &mut World) {
-    let load_paths: Vec<std::path::PathBuf> = world.resource_scope(|_world, mut events: Mut<bevy::ecs::event::Events<crate::editor::components::LoadSceneRequest>>| {
-        let paths: Vec<_> = events.drain().map(|e| e.path).collect();
-        paths
-    });
+    let load_paths: Vec<std::path::PathBuf> =
+        world.resource_scope(
+            |_world,
+             mut events: Mut<
+                bevy::ecs::event::Events<crate::editor::components::LoadSceneRequest>,
+            >| {
+                let paths: Vec<_> = events.drain().map(|e| e.path).collect();
+                paths
+            },
+        );
 
     if load_paths.is_empty() {
         return;

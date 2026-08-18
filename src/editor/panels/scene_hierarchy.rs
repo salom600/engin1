@@ -84,17 +84,8 @@ pub fn draw_content(
                 let filter = state.filter.clone();
                 for entity in roots {
                     draw_entity_tree(
-                        entity,
-                        selection,
-                        parents,
-                        children,
-                        names,
-                        hidden,
-                        locked,
-                        pending,
-                        ui,
-                        &filter,
-                        state,
+                        entity, selection, parents, children, names, hidden, locked, pending, ui,
+                        &filter, state,
                     );
                 }
             }
