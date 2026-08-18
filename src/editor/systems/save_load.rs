@@ -7,7 +7,7 @@ use crate::editor::components::SceneEntity;
 use crate::editor::state::CurrentScenePath;
 use bevy::ecs::entity::EntityHashMap;
 use bevy::prelude::*;
-use bevy::reflect::serde::SceneDeserializer;
+use bevy::scene::serde::SceneDeserializer;
 use bevy::scene::{DynamicScene, DynamicSceneBuilder};
 use ron::de::Deserializer;
 use std::io::Write;
@@ -135,7 +135,7 @@ pub fn handle_load_requests(world: &mut World) {
         }
 
         // Spawn all entities from the scene into the world
-        let mut entity_map = EntityHashMap::new();
+        let mut entity_map = EntityHashMap::default();
         scene.write_to_world(world, &mut entity_map);
         world.resource_mut::<CurrentScenePath>().0 = Some(path.clone());
         info!("Loaded scene from {:?}", path);

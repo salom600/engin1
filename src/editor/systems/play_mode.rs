@@ -51,7 +51,7 @@ pub fn restore_scene_after_play(world: &mut World) {
     }
 
     // Restore from snapshot
-    let mut entity_map = EntityHashMap::new();
+    let mut entity_map = EntityHashMap::default();
     scene.write_to_world(world, &mut entity_map);
     info!("Play mode: scene restored from snapshot.");
 }
