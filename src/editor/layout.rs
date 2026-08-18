@@ -154,7 +154,10 @@ pub fn draw_editor_ui(
                 ui.separator();
 
                 // Entity count
-                ui.label(format!("Entities: {}", queries.scene_entities.iter().count()));
+                ui.label(format!(
+                    "Entities: {}",
+                    queries.scene_entities.iter().count()
+                ));
                 ui.separator();
 
                 // Selection
@@ -233,8 +236,9 @@ pub fn draw_editor_ui(
                 ui.separator();
 
                 // Right-aligned per-tab actions
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    match *states.bottom_tab {
+                ui.with_layout(
+                    egui::Layout::right_to_left(egui::Align::Center),
+                    |ui| match *states.bottom_tab {
                         BottomTab::Console => {
                             if ui.button("Clear").clicked() {
                                 editor_log.clear();
@@ -254,8 +258,8 @@ pub fn draw_editor_ui(
                             }
                         }
                         BottomTab::Output => {}
-                    }
-                });
+                    },
+                );
             });
             ui.separator();
 
@@ -265,7 +269,12 @@ pub fn draw_editor_ui(
                     console::draw_content(ui, &editor_log, &mut *states.console);
                 }
                 BottomTab::Assets => {
-                    asset_browser::draw_content(ui, &asset_db, &project, &mut *states.asset_browser);
+                    asset_browser::draw_content(
+                        ui,
+                        &asset_db,
+                        &project,
+                        &mut *states.asset_browser,
+                    );
                 }
                 BottomTab::Output => {
                     ui.vertical_centered(|ui| {
