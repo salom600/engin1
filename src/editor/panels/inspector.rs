@@ -27,9 +27,11 @@ pub fn draw_content(
             ui.label("No entity selected.");
             ui.add_space(8.0);
             ui.label(
-                egui::RichText::new("Select an entity in the\nHierarchy or Viewport to inspect it.")
-                    .color(egui::Color32::from_rgb(140, 140, 140))
-                    .small(),
+                egui::RichText::new(
+                    "Select an entity in the\nHierarchy or Viewport to inspect it.",
+                )
+                .color(egui::Color32::from_rgb(140, 140, 140))
+                .small(),
             );
         });
         return;

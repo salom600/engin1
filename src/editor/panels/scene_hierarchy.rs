@@ -227,8 +227,8 @@ fn draw_entity_tree(
             if let Ok(child_list) = children.get(entity) {
                 for &child in child_list {
                     draw_entity_tree(
-                        child, selection, parents, children, names, hidden, locked, commands,
-                        ui, filter,
+                        child, selection, parents, children, names, hidden, locked, commands, ui,
+                        filter,
                     );
                 }
             }

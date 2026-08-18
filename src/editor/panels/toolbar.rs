@@ -95,10 +95,18 @@ pub fn draw(
                 ui.separator();
 
                 // ---- Save / Load ----
-                if ui.button("💾 Save").on_hover_text("Save scene (Ctrl+S)").clicked() {
+                if ui
+                    .button("💾 Save")
+                    .on_hover_text("Save scene (Ctrl+S)")
+                    .clicked()
+                {
                     info!("Toolbar → Save (TODO)");
                 }
-                if ui.button("📂 Load").on_hover_text("Load scene (Ctrl+O)").clicked() {
+                if ui
+                    .button("📂 Load")
+                    .on_hover_text("Load scene (Ctrl+O)")
+                    .clicked()
+                {
                     info!("Toolbar → Load (TODO)");
                 }
 

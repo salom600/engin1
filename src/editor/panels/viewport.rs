@@ -74,7 +74,15 @@ pub fn draw_content(
     let sel_text = if selection.is_empty() {
         "No entity selected".to_string()
     } else {
-        format!("{} entit{} selected", selection.entities.len(), if selection.entities.len() == 1 { "y" } else { "ies" })
+        format!(
+            "{} entit{} selected",
+            selection.entities.len(),
+            if selection.entities.len() == 1 {
+                "y"
+            } else {
+                "ies"
+            }
+        )
     };
     ui.painter().text(
         rect.left_bottom() + egui::vec2(12.0, -12.0),
