@@ -58,12 +58,9 @@ pub fn draw_content(
         );
         ui.separator();
         ui.label(
-            egui::RichText::new(format!(
-                "📁 {}",
-                project.assets_dir.display()
-            ))
-            .color(egui::Color32::from_rgb(140, 140, 140))
-            .small(),
+            egui::RichText::new(format!("📁 {}", project.assets_dir.display()))
+                .color(egui::Color32::from_rgb(140, 140, 140))
+                .small(),
         );
     });
     ui.separator();

@@ -177,11 +177,8 @@ pub fn draw_editor_ui(
                 // Right-aligned info
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     ui.label(
-                        egui::RichText::new(format!(
-                            "Bevy Editor v{}",
-                            env!("CARGO_PKG_VERSION")
-                        ))
-                        .color(egui::Color32::from_rgb(140, 140, 140)),
+                        egui::RichText::new(format!("Bevy Editor v{}", env!("CARGO_PKG_VERSION")))
+                            .color(egui::Color32::from_rgb(140, 140, 140)),
                     );
                 });
             });
@@ -260,12 +257,7 @@ pub fn draw_editor_ui(
                     console::draw_content(ui, &editor_log, &mut *console_state);
                 }
                 BottomTab::Assets => {
-                    asset_browser::draw_content(
-                        ui,
-                        &asset_db,
-                        &project,
-                        &mut *asset_browser_state,
-                    );
+                    asset_browser::draw_content(ui, &asset_db, &project, &mut *asset_browser_state);
                 }
                 BottomTab::Output => {
                     ui.vertical_centered(|ui| {
