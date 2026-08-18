@@ -12,5 +12,5 @@ pub mod log;
 pub mod physics;
 pub mod play_mode;
 pub mod save_load;
-pub mod spawn;
 pub mod scripting;
+pub mod spawn;

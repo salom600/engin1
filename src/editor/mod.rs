@@ -93,9 +93,15 @@ impl Plugin for EditorPlugin {
         );
 
         // ----- Play mode snapshot/restore -----
-        app.add_systems(OnEnter(EditorState::Playing), systems::play_mode::snapshot_scene_before_play)
-            .add_systems(OnExit(EditorState::Playing), systems::play_mode::restore_scene_after_play)
-            .add_systems(Update, systems::play_mode::play_mode_sync_system);
+        app.add_systems(
+            OnEnter(EditorState::Playing),
+            systems::play_mode::snapshot_scene_before_play,
+        )
+        .add_systems(
+            OnExit(EditorState::Playing),
+            systems::play_mode::restore_scene_after_play,
+        )
+        .add_systems(Update, systems::play_mode::play_mode_sync_system);
 
         // ----- Editor logic systems -----
         app.add_systems(
@@ -227,4 +233,3 @@ fn flush_pending_actions(
         load_writer.send(components::LoadSceneRequest { path });
     }
 }
-

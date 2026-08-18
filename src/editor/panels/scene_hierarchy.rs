@@ -235,7 +235,9 @@ fn draw_entity_tree(
                 }
                 ui.separator();
                 if ui.button("Add Child").clicked() {
-                    pending.spawns.push(SpawnRequest::ChildOf { parent: entity });
+                    pending
+                        .spawns
+                        .push(SpawnRequest::ChildOf { parent: entity });
                     ui.close_menu();
                 }
             });

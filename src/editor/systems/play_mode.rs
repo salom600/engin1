@@ -25,7 +25,10 @@ pub fn snapshot_scene_before_play(
             .extract_entities(entities.into_iter())
             .build(),
     );
-    info!("Play mode: scene snapshot taken ({} entities)", entities.len());
+    info!(
+        "Play mode: scene snapshot taken ({} entities)",
+        entities.len()
+    );
 }
 
 /// Restore the scene snapshot when exiting Play mode.

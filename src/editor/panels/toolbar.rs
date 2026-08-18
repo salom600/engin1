@@ -107,11 +107,7 @@ pub fn draw(
                 {
                     pending.save = true;
                 }
-                if ui
-                    .button("📂 Load")
-                    .on_hover_text("Load scene")
-                    .clicked()
-                {
+                if ui.button("📂 Load").on_hover_text("Load scene").clicked() {
                     if let Some(file) = rfd::FileDialog::new()
                         .add_filter("Bevy scene", &["scn.ron", "ron"])
                         .pick_file()

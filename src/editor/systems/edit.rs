@@ -2,7 +2,9 @@
 //!
 //! These listen for editor events and perform real ECS mutations.
 
-use crate::editor::components::{DeleteEntityRequest, DuplicateEntityRequest, RenameEntityRequest, SceneEntity};
+use crate::editor::components::{
+    DeleteEntityRequest, DuplicateEntityRequest, RenameEntityRequest, SceneEntity,
+};
 use crate::editor::state::Selection;
 use bevy::prelude::*;
 
@@ -58,7 +60,9 @@ pub fn handle_duplicate_requests(
 
         commands.spawn((
             SpatialBundle {
-                transform: Transform::from_translation(transform.translation + Vec3::new(1.0, 0.0, 1.0)),
+                transform: Transform::from_translation(
+                    transform.translation + Vec3::new(1.0, 0.0, 1.0),
+                ),
                 ..default()
             },
             SceneEntity,
