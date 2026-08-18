@@ -223,17 +223,15 @@ fn draw_entity_tree(
 
     // Recurse into children
     if has_children {
-        egui::CollapsingHeader::new("")
-            .default_open(true)
-            .show(ui, |ui| {
-                if let Ok(child_list) = children.get(entity) {
-                    for &child in child_list {
-                        draw_entity_tree(
-                            child, selection, parents, children, names, hidden, locked, commands,
-                            ui, filter,
-                        );
-                    }
+        ui.indent(format!("entity_children_{:?}", entity), |ui| {
+            if let Ok(child_list) = children.get(entity) {
+                for &child in child_list {
+                    draw_entity_tree(
+                        child, selection, parents, children, names, hidden, locked, commands,
+                        ui, filter,
+                    );
                 }
-            });
+            }
+        });
     }
 }

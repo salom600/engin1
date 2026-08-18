@@ -173,7 +173,7 @@ fn draw_vec3_row(ui: &mut egui::Ui, value: Vec3) {
             egui::DragValue::new(&mut x)
                 .speed(0.1)
                 .range(-1000.0..=1000.0)
-                .prefix("X: "),
+                .prefix("X: ")
                 .fixed_decimals(2),
         );
         ui.add(

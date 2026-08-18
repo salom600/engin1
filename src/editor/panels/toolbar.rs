@@ -67,7 +67,7 @@ pub fn draw(
                         .fill(pause_bg)
                         .min_size(egui::vec2(80.0, 0.0)),
                     )
-                    .on_disabled_hover_text("Only available while playing")
+                    .on_hover_text("Only available while playing")
                     .clicked()
                 {
                     if playing {

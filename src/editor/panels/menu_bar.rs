@@ -89,11 +89,11 @@ pub fn draw(
                         .next_redo_description()
                         .map(|s| format!("Redo {s}\tCtrl+Y"))
                         .unwrap_or_else(|| "Redo\tCtrl+Y".to_string());
-                    if ui.add_enabled(false, egui::Button::new(undo_label)).clicked() {
+                    if ui.add(egui::Button::new(undo_label)).clicked() {
                         info!("Edit → Undo (TODO)");
                         ui.close_menu();
                     }
-                    if ui.add_enabled(false, egui::Button::new(redo_label)).clicked() {
+                    if ui.add(egui::Button::new(redo_label)).clicked() {
                         info!("Edit → Redo (TODO)");
                         ui.close_menu();
                     }
@@ -121,14 +121,8 @@ pub fn draw(
                     ui.separator();
                     ui.label("Theme:");
                     ui.horizontal(|ui| {
-                        if ui
-                            .radio_value(&mut settings.theme, ThemeKind::Dark, "Dark")
-                            .clicked()
-                        {}
-                        if ui
-                            .radio_value(&mut settings.theme, ThemeKind::Light, "Light")
-                            .clicked()
-                        {}
+                        ui.radio_value(&mut settings.theme, ThemeKind::Dark, "Dark");
+                        ui.radio_value(&mut settings.theme, ThemeKind::Light, "Light");
                     });
                 });
 
