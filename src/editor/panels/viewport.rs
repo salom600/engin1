@@ -167,7 +167,6 @@ pub fn draw_content(
             egui::Rect::from_center_size(center, egui::vec2(gizmo_size, gizmo_size)),
             2.0,
             egui::Stroke::new(1.5, egui::Color32::from_rgb(0, 180, 255)),
-            egui::StrokeKind::Outside,
         );
         ui.painter().text(
             center + egui::vec2(0.0, gizmo_size / 2.0 + 8.0),

@@ -99,8 +99,9 @@ pub fn draw_window(ctx: &egui::Context, state: &mut ScriptEditorState, project: 
         format!("{} — Script Editor", state.title)
     };
 
+    let mut open = state.open;
     egui::Window::new(title)
-        .open(&mut state.open)
+        .open(&mut open)
         .resizable(true)
         .collapsible(true)
         .default_width(600.0)
@@ -172,4 +173,6 @@ pub fn draw_window(ctx: &egui::Context, state: &mut ScriptEditorState, project: 
                 }
             });
         });
+
+    state.open = open;
 }

@@ -30,6 +30,10 @@ pub mod script_editor;
 pub mod toolbar;
 pub mod viewport;
 
+// Re-export key state types so they can be accessed as `panels::ScriptEditorState`
+pub use script_editor::ScriptEditorState;
+pub use viewport::TransformMode as ViewportTransformMode;
+
 /// Per-panel visibility flags. Toggled via the View menu.
 #[derive(Resource, Debug, Clone, PartialEq)]
 pub struct PanelVisibility {
