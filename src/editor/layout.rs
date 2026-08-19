@@ -24,7 +24,9 @@
 //! - [`EditorQueries`] — bundles all ECS queries into one param
 //! - [`EditorResources`] — bundles all read-only resources into one param
 
-use crate::editor::components::{EditorCamera, Hidden, Locked, SceneEntity, ViewportCamera, ViewportRect};
+use crate::editor::components::{
+    EditorCamera, Hidden, Locked, SceneEntity, ViewportCamera, ViewportRect,
+};
 use crate::editor::panels::{
     about, add_component, asset_browser, console, inspector, menu_bar, scene_hierarchy,
     script_editor, toolbar, viewport, AssetBrowserState, BottomTab, ConsoleState, HierarchyState,

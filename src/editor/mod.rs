@@ -100,7 +100,10 @@ impl Plugin for EditorPlugin {
         app.add_systems(Update, systems::save_load::handle_load_requests);
 
         // ----- Viewport scissor system (runs in PostUpdate, after egui layout) -----
-        app.add_systems(PostUpdate, systems::viewport_scissor::apply_viewport_to_camera);
+        app.add_systems(
+            PostUpdate,
+            systems::viewport_scissor::apply_viewport_to_camera,
+        );
 
         // ----- Play mode snapshot/restore (exclusive systems) -----
         app.add_systems(

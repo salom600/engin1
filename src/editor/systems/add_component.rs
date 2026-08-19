@@ -1,7 +1,7 @@
 //! Handle AddComponentRequest events — adds real ECS components to entities.
 
 use crate::editor::components::{
-    AddComponentRequest, AIAgent, ColliderShape, RigidBodyType, ScriptComponent,
+    AIAgent, AddComponentRequest, ColliderShape, RigidBodyType, ScriptComponent,
 };
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::{Collider, RigidBody};
@@ -21,10 +21,7 @@ pub fn handle_add_component_requests(
                     RigidBodyType::Kinematic => RigidBody::KinematicPositionBased,
                 };
                 commands.entity(*entity).insert(rb);
-                info!(
-                    "Added RigidBody ({:?}) to entity {:?}",
-                    body_type, entity
-                );
+                info!("Added RigidBody ({:?}) to entity {:?}", body_type, entity);
             }
             AddComponentRequest::Collider { entity, shape } => {
                 let collider = match shape {
