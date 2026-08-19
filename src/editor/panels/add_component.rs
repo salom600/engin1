@@ -6,9 +6,7 @@
 //! All buttons send real `AddComponentRequest` events that are processed
 //! by the `handle_add_component_requests` system.
 
-use crate::editor::components::{
-    AddComponentRequest, ColliderShape, RigidBodyType,
-};
+use crate::editor::components::{AddComponentRequest, ColliderShape, RigidBodyType};
 use crate::editor::panels::{PendingActions, ViewportState};
 use crate::editor::state::Selection;
 use bevy::prelude::*;
@@ -30,12 +28,15 @@ pub fn draw_window(
         return;
     };
 
+    let mut open = state.add_component_open;
+    let mut close_requested = false;
+
     egui::Window::new("Add Component")
         .resizable(true)
         .collapsible(false)
         .default_width(380.0)
         .default_height(480.0)
-        .open(&mut state.add_component_open)
+        .open(&mut open)
         .show(ctx, |ui| {
             ui.label(format!("Adding component to entity: {:?}", entity));
             ui.separator();
@@ -56,7 +57,7 @@ pub fn draw_window(
                         entity,
                         body_type: RigidBodyType::Dynamic,
                     });
-                    state.add_component_open = false;
+                    close_requested = true;
                 }
                 if ui
                     .button("RigidBody (Static)")
@@ -67,7 +68,7 @@ pub fn draw_window(
                         entity,
                         body_type: RigidBodyType::Static,
                     });
-                    state.add_component_open = false;
+                    close_requested = true;
                 }
                 if ui
                     .button("RigidBody (Kinematic)")
@@ -78,7 +79,7 @@ pub fn draw_window(
                         entity,
                         body_type: RigidBodyType::Kinematic,
                     });
-                    state.add_component_open = false;
+                    close_requested = true;
                 }
             });
             ui.horizontal_wrapped(|ui| {
@@ -91,7 +92,7 @@ pub fn draw_window(
                         entity,
                         shape: ColliderShape::Box,
                     });
-                    state.add_component_open = false;
+                    close_requested = true;
                 }
                 if ui
                     .button("Collider (Sphere)")
@@ -102,7 +103,7 @@ pub fn draw_window(
                         entity,
                         shape: ColliderShape::Sphere,
                     });
-                    state.add_component_open = false;
+                    close_requested = true;
                 }
             });
 
@@ -124,11 +125,8 @@ pub fn draw_window(
                         .pick_file()
                     {
                         let path = file.to_string_lossy().to_string();
-                        pending.add_components.push(AddComponentRequest::LuaScript {
-                            entity,
-                            path,
-                        });
-                        state.add_component_open = false;
+                        pending.add_components.push(AddComponentRequest::LuaScript { entity, path });
+                        close_requested = true;
                     }
                 }
                 if ui
@@ -142,11 +140,10 @@ pub fn draw_window(
                         .pick_file()
                     {
                         let path = file.to_string_lossy().to_string();
-                        pending.add_components.push(AddComponentRequest::RhaiScript {
-                            entity,
-                            path,
-                        });
-                        state.add_component_open = false;
+                        pending
+                            .add_components
+                            .push(AddComponentRequest::RhaiScript { entity, path });
+                        close_requested = true;
                     }
                 }
             });
@@ -173,7 +170,7 @@ pub fn draw_window(
                         entity,
                         name: format!("Agent {:?}", entity),
                     });
-                    state.add_component_open = false;
+                    close_requested = true;
                 }
             });
 
@@ -188,8 +185,11 @@ pub fn draw_window(
             ui.separator();
             ui.horizontal(|ui| {
                 if ui.button("Close").clicked() {
-                    state.add_component_open = false;
+                    close_requested = true;
                 }
             });
         });
+
+    // Write back the open state
+    state.add_component_open = open && !close_requested;
 }
