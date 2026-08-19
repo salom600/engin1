@@ -126,6 +126,11 @@ pub fn draw(
                     ui.checkbox(&mut vis.scene_hierarchy, "Scene Hierarchy");
                     ui.checkbox(&mut vis.inspector, "Inspector");
                     ui.separator();
+                    if ui.button("Script Editor").clicked() {
+                        pending.open_script_editor = true;
+                        ui.close_menu();
+                    }
+                    ui.separator();
                     ui.label("Theme:");
                     ui.horizontal(|ui| {
                         ui.radio_value(&mut settings.theme, ThemeKind::Dark, "Dark");

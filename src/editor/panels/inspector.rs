@@ -16,6 +16,7 @@ pub fn draw_content(
     visibility_query: &Query<&Visibility>,
     name_query: &mut Query<&mut Name>,
     is_edit_mode: bool,
+    pending: &mut crate::editor::panels::PendingActions,
 ) {
     // ---- Header ----
     ui.horizontal(|ui| {
@@ -133,6 +134,18 @@ pub fn draw_content(
         .show(ui, |ui| {
             ui.label("AI Agent: None");
         });
+
+    // ---- Footer: Add Component button ----
+    ui.separator();
+    ui.horizontal(|ui| {
+        if ui
+            .button("➕ Add Component")
+            .on_hover_text("Open the Add Component dialog")
+            .clicked()
+        {
+            pending.open_add_component = true;
+        }
+    });
 }
 
 /// Draw an editable Transform editor — writes back to the ECS world.

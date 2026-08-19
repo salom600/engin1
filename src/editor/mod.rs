@@ -50,6 +50,8 @@ impl Plugin for EditorPlugin {
             .init_resource::<panels::HierarchyState>()
             .init_resource::<panels::AssetBrowserState>()
             .init_resource::<panels::PendingActions>()
+            .init_resource::<panels::ViewportState>()
+            .init_resource::<panels::ScriptEditorState>()
             .init_resource::<resources::CommandHistory>()
             .init_resource::<resources::EditorCameraState>()
             .init_resource::<theme::EditorTheme>()

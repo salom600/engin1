@@ -26,8 +26,9 @@
 
 use crate::editor::components::{EditorCamera, Hidden, Locked, SceneEntity, ViewportCamera};
 use crate::editor::panels::{
-    about, asset_browser, console, inspector, menu_bar, scene_hierarchy, toolbar, viewport,
-    AssetBrowserState, BottomTab, ConsoleState, HierarchyState, PanelVisibility, PendingActions,
+    about, add_component, asset_browser, console, inspector, menu_bar, scene_hierarchy,
+    script_editor, toolbar, viewport, AssetBrowserState, BottomTab, ConsoleState, HierarchyState,
+    PanelVisibility, PendingActions, ScriptEditorState, ViewportState,
 };
 use crate::editor::resources::{
     AssetDatabase, CommandHistory, EditorLog, EditorSettings, ProjectResource,
@@ -79,6 +80,10 @@ pub struct PanelStates<'w> {
     pub asset_browser: ResMut<'w, AssetBrowserState>,
     /// Pending editor actions (spawn, delete, rename, save, load).
     pub pending: ResMut<'w, PendingActions>,
+    /// Viewport state (transform mode, add-component dialog).
+    pub viewport: ResMut<'w, ViewportState>,
+    /// Script editor state (open, content, path).
+    pub script_editor: ResMut<'w, ScriptEditorState>,
 }
 
 /// The master layout system. Draws ALL editor UI in the correct egui panel order.
@@ -338,6 +343,7 @@ pub fn draw_editor_ui(
                     &queries.visibility,
                     &mut queries.names,
                     current_state.get().is_edit_mode(),
+                    &mut *states.pending,
                 );
             });
     }
@@ -347,13 +353,42 @@ pub fn draw_editor_ui(
     // ═══════════════════════════════════════════════════════════════
 
     egui::CentralPanel::default().show(ctx, |ui| {
-        viewport::draw_content(ui, &*selection, &mut *settings, &queries.camera);
+        viewport::draw_content(
+            ui,
+            &*selection,
+            &mut *settings,
+            &queries.camera,
+            &mut states.viewport.transform_mode,
+        );
     });
 
     // ═══════════════════════════════════════════════════════════════
     // 5. FLOATING WINDOWS — drawn after all panels.
+    //    These appear on top of everything else.
     // ═══════════════════════════════════════════════════════════════
 
+    // Handle pending open-window requests
+    if states.pending.open_add_component {
+        states.viewport.add_component_open = true;
+        states.pending.open_add_component = false;
+    }
+    if states.pending.open_script_editor {
+        states.script_editor.open = true;
+        states.pending.open_script_editor = false;
+    }
+
+    // Add Component dialog
+    add_component::draw_window(
+        ctx,
+        &mut *states.viewport,
+        &*selection,
+        &mut *states.pending,
+    );
+
+    // Script Editor window
+    script_editor::draw_window(ctx, &mut *states.script_editor, &project);
+
+    // About + Settings windows
     about::draw_window(ctx, &mut *states.visibility, &mut *settings);
 }
 

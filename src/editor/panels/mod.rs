@@ -20,11 +20,13 @@
 use bevy::prelude::*;
 
 pub mod about;
+pub mod add_component;
 pub mod asset_browser;
 pub mod console;
 pub mod inspector;
 pub mod menu_bar;
 pub mod scene_hierarchy;
+pub mod script_editor;
 pub mod toolbar;
 pub mod viewport;
 
@@ -105,6 +107,24 @@ pub struct HierarchyState {
     pub rename_buf: String,
 }
 
+/// Persistent state for the Viewport panel (transform mode + add-component dialog).
+#[derive(Resource, Debug, Clone)]
+pub struct ViewportState {
+    /// Current transform tool mode (Select / Move / Rotate / Scale).
+    pub transform_mode: crate::editor::panels::viewport::TransformMode,
+    /// Whether the Add Component dialog is open.
+    pub add_component_open: bool,
+}
+
+impl Default for ViewportState {
+    fn default() -> Self {
+        Self {
+            transform_mode: crate::editor::panels::viewport::TransformMode::default(),
+            add_component_open: false,
+        }
+    }
+}
+
 /// Pending editor actions queued by the UI, to be flushed by a system.
 #[derive(Resource, Default, Debug)]
 pub struct PendingActions {
@@ -120,6 +140,10 @@ pub struct PendingActions {
     pub save: bool,
     /// Load scene request
     pub load: Option<std::path::PathBuf>,
+    /// Open the Add Component dialog
+    pub open_add_component: bool,
+    /// Open the Script Editor
+    pub open_script_editor: bool,
 }
 
 /// Persistent state for the Asset Browser panel (filter text).
