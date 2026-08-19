@@ -88,11 +88,7 @@ impl ScriptEditorState {
 }
 
 /// Draw the script editor as a floating window.
-pub fn draw_window(
-    ctx: &egui::Context,
-    state: &mut ScriptEditorState,
-    project: &ProjectResource,
-) {
+pub fn draw_window(ctx: &egui::Context, state: &mut ScriptEditorState, project: &ProjectResource) {
     if !state.open {
         return;
     }

@@ -53,23 +53,43 @@ pub fn draw_window(
             ui.heading("Physics");
             ui.separator();
             ui.horizontal_wrapped(|ui| {
-                if ui.button("RigidBody (Dynamic)").on_hover_text("Affected by gravity and forces").clicked() {
+                if ui
+                    .button("RigidBody (Dynamic)")
+                    .on_hover_text("Affected by gravity and forces")
+                    .clicked()
+                {
                     info!("Add RigidBody (Dynamic) — TODO: queue via pending actions");
                     state.add_component_open = false;
                 }
-                if ui.button("RigidBody (Static)").on_hover_text("Doesn't move, but collides").clicked() {
+                if ui
+                    .button("RigidBody (Static)")
+                    .on_hover_text("Doesn't move, but collides")
+                    .clicked()
+                {
                     info!("Add RigidBody (Static) — TODO");
                     state.add_component_open = false;
                 }
-                if ui.button("RigidBody (Kinematic)").on_hover_text("Moved manually, no forces").clicked() {
+                if ui
+                    .button("RigidBody (Kinematic)")
+                    .on_hover_text("Moved manually, no forces")
+                    .clicked()
+                {
                     info!("Add RigidBody (Kinematic) — TODO");
                     state.add_component_open = false;
                 }
-                if ui.button("Collider (Box)").on_hover_text("Box-shaped collision volume").clicked() {
+                if ui
+                    .button("Collider (Box)")
+                    .on_hover_text("Box-shaped collision volume")
+                    .clicked()
+                {
                     info!("Add Collider (Box) — TODO");
                     state.add_component_open = false;
                 }
-                if ui.button("Collider (Sphere)").on_hover_text("Spherical collision volume").clicked() {
+                if ui
+                    .button("Collider (Sphere)")
+                    .on_hover_text("Spherical collision volume")
+                    .clicked()
+                {
                     info!("Add Collider (Sphere) — TODO");
                     state.add_component_open = false;
                 }
@@ -81,11 +101,19 @@ pub fn draw_window(
             ui.heading("Scripting");
             ui.separator();
             ui.horizontal_wrapped(|ui| {
-                if ui.button("Lua Script").on_hover_text("Attach a Lua script to this entity").clicked() {
+                if ui
+                    .button("Lua Script")
+                    .on_hover_text("Attach a Lua script to this entity")
+                    .clicked()
+                {
                     info!("Add Lua Script — TODO: open script picker");
                     state.add_component_open = false;
                 }
-                if ui.button("New Script").on_hover_text("Create a new Lua script file").clicked() {
+                if ui
+                    .button("New Script")
+                    .on_hover_text("Create a new Lua script file")
+                    .clicked()
+                {
                     info!("Create new script — TODO: open script editor");
                     state.add_component_open = false;
                 }
@@ -97,7 +125,11 @@ pub fn draw_window(
             ui.heading("Artificial Intelligence");
             ui.separator();
             ui.horizontal_wrapped(|ui| {
-                if ui.button("AI Agent").on_hover_text("Utility AI agent (big-brain)").clicked() {
+                if ui
+                    .button("AI Agent")
+                    .on_hover_text("Utility AI agent (big-brain)")
+                    .clicked()
+                {
                     info!("Add AI Agent — TODO");
                     state.add_component_open = false;
                 }
