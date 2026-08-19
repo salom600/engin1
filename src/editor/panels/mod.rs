@@ -140,6 +140,8 @@ pub struct PendingActions {
     pub renames: Vec<crate::editor::components::RenameEntityRequest>,
     /// Duplicate requests
     pub duplicates: Vec<crate::editor::components::DuplicateEntityRequest>,
+    /// Add component requests (physics, scripts, AI, etc.)
+    pub add_components: Vec<crate::editor::components::AddComponentRequest>,
     /// Save scene request
     pub save: bool,
     /// Load scene request

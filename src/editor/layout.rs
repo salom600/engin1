@@ -24,7 +24,7 @@
 //! - [`EditorQueries`] — bundles all ECS queries into one param
 //! - [`EditorResources`] — bundles all read-only resources into one param
 
-use crate::editor::components::{EditorCamera, Hidden, Locked, SceneEntity, ViewportCamera};
+use crate::editor::components::{EditorCamera, Hidden, Locked, SceneEntity, ViewportCamera, ViewportRect};
 use crate::editor::panels::{
     about, add_component, asset_browser, console, inspector, menu_bar, scene_hierarchy,
     script_editor, toolbar, viewport, AssetBrowserState, BottomTab, ConsoleState, HierarchyState,
@@ -84,6 +84,8 @@ pub struct PanelStates<'w> {
     pub viewport: ResMut<'w, ViewportState>,
     /// Script editor state (open, content, path).
     pub script_editor: ResMut<'w, ScriptEditorState>,
+    /// The current viewport rectangle (updated every frame).
+    pub viewport_rect: ResMut<'w, ViewportRect>,
 }
 
 /// The master layout system. Draws ALL editor UI in the correct egui panel order.
@@ -361,6 +363,30 @@ pub fn draw_editor_ui(
             &mut states.viewport.transform_mode,
         );
     });
+
+    // ═══════════════════════════════════════════════════════════════
+    // 4b. VIEWPORT SCISSOR — capture the central panel's screen rect
+    //     and store it so the camera system can apply it as a Camera
+    //     viewport. This ensures the 3D scene only renders inside the
+    //     central panel, not behind the side/bottom panels.
+    // ═══════════════════════════════════════════════════════════════
+
+    let central_rect = ctx.input(|i: &egui::InputState| i.screen_rect);
+    let _ = central_rect; // screen_rect is the full window; we need the panel rect
+
+    // Get the central panel's rect from egui
+    if let Some(panel_rect) = ctx.memory(|mem| mem.area_rect(egui::Id::new("CentralPanel"))) {
+        // egui uses logical pixels; Bevy's Camera::viewport uses physical pixels.
+        let scale_factor = ctx.pixels_per_point();
+        let min_x = (panel_rect.min.x * scale_factor) as u32;
+        let min_y = (panel_rect.min.y * scale_factor) as u32;
+        let max_x = (panel_rect.max.x * scale_factor) as u32;
+        let max_y = (panel_rect.max.y * scale_factor) as u32;
+        states.viewport_rect.rect = Some(bevy::math::URect {
+            min: bevy::math::UVec2::new(min_x, min_y),
+            max: bevy::math::UVec2::new(max_x, max_y),
+        });
+    }
 
     // ═══════════════════════════════════════════════════════════════
     // 5. FLOATING WINDOWS — drawn after all panels.

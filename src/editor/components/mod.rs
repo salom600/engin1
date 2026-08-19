@@ -10,6 +10,18 @@ use bevy::prelude::*;
 #[reflect(Component)]
 pub struct EditorCamera;
 
+/// Resource holding the current viewport rectangle (in physical pixels).
+///
+/// The master layout system updates this every frame after egui lays out
+/// the CentralPanel. The camera system reads it and sets the camera's
+/// `Camera::viewport` field so the 3D scene only renders inside the
+/// central panel area — not behind the side/bottom panels.
+#[derive(Resource, Debug, Clone, Copy, Default)]
+pub struct ViewportRect {
+    /// The rectangle in physical pixels where the 3D scene should render.
+    pub rect: Option<bevy::math::URect>,
+}
+
 /// Per-camera viewport state (orbit angles, distance, target).
 #[derive(Component, Debug, Clone, Copy, Default, Reflect)]
 #[reflect(Component)]
@@ -162,4 +174,64 @@ pub struct LoadSceneRequest {
 pub struct DuplicateEntityRequest {
     /// The entity to duplicate.
     pub entity: Entity,
+}
+
+/// What kind of component to add to an entity.
+#[derive(Event, Clone, Debug)]
+pub enum AddComponentRequest {
+    /// Add a physics RigidBody to the entity.
+    RigidBody {
+        /// The target entity.
+        entity: Entity,
+        /// Dynamic (affected by forces), Static (immovable), or Kinematic (moved manually).
+        body_type: RigidBodyType,
+    },
+    /// Add a collider shape to the entity.
+    Collider {
+        /// The target entity.
+        entity: Entity,
+        /// The shape of the collider.
+        shape: ColliderShape,
+    },
+    /// Attach a Lua script to the entity.
+    LuaScript {
+        /// The target entity.
+        entity: Entity,
+        /// Path to the .lua file (relative to assets/scripts/).
+        path: String,
+    },
+    /// Attach a Rhai script (Rust-like syntax) to the entity.
+    RhaiScript {
+        /// The target entity.
+        entity: Entity,
+        /// Path to the .rhai file (relative to assets/scripts/).
+        path: String,
+    },
+    /// Add an AI agent to the entity.
+    AIAgent {
+        /// The target entity.
+        entity: Entity,
+        /// Name of the agent (for debugging).
+        name: String,
+    },
+}
+
+/// The type of a physics rigid body.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Reflect)]
+pub enum RigidBodyType {
+    /// Affected by gravity and forces.
+    Dynamic,
+    /// Immovable; collides but doesn't move.
+    Static,
+    /// Moved manually via code; not affected by forces.
+    Kinematic,
+}
+
+/// The shape of a physics collider.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Reflect)]
+pub enum ColliderShape {
+    /// Box-shaped (cuboid) collider.
+    Box,
+    /// Spherical collider.
+    Sphere,
 }

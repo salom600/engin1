@@ -52,6 +52,7 @@ impl Plugin for EditorPlugin {
             .init_resource::<panels::PendingActions>()
             .init_resource::<panels::ViewportState>()
             .init_resource::<panels::ScriptEditorState>()
+            .init_resource::<components::ViewportRect>()
             .init_resource::<resources::CommandHistory>()
             .init_resource::<resources::EditorCameraState>()
             .init_resource::<theme::EditorTheme>()
@@ -69,6 +70,7 @@ impl Plugin for EditorPlugin {
             .add_event::<components::DeleteEntityRequest>()
             .add_event::<components::RenameEntityRequest>()
             .add_event::<components::DuplicateEntityRequest>()
+            .add_event::<components::AddComponentRequest>()
             .add_event::<components::SaveSceneRequest>()
             .add_event::<components::LoadSceneRequest>();
 
@@ -89,12 +91,16 @@ impl Plugin for EditorPlugin {
                 systems::edit::handle_rename_requests,
                 systems::edit::handle_duplicate_requests,
                 systems::edit::cleanup_selection_after_despawn,
+                systems::add_component::handle_add_component_requests,
                 systems::save_load::autosave_system,
             ),
         );
         // Exclusive systems (&mut World) must be registered separately:
         app.add_systems(Update, systems::save_load::handle_save_requests);
         app.add_systems(Update, systems::save_load::handle_load_requests);
+
+        // ----- Viewport scissor system (runs in PostUpdate, after egui layout) -----
+        app.add_systems(PostUpdate, systems::viewport_scissor::apply_viewport_to_camera);
 
         // ----- Play mode snapshot/restore (exclusive systems) -----
         app.add_systems(
@@ -214,6 +220,7 @@ fn flush_pending_actions(
     mut delete_writer: EventWriter<components::DeleteEntityRequest>,
     mut rename_writer: EventWriter<components::RenameEntityRequest>,
     mut duplicate_writer: EventWriter<components::DuplicateEntityRequest>,
+    mut add_component_writer: EventWriter<components::AddComponentRequest>,
     mut save_writer: EventWriter<components::SaveSceneRequest>,
     mut load_writer: EventWriter<components::LoadSceneRequest>,
 ) {
@@ -228,6 +235,9 @@ fn flush_pending_actions(
     }
     for req in pending.duplicates.drain(..) {
         duplicate_writer.send(req);
+    }
+    for req in pending.add_components.drain(..) {
+        add_component_writer.send(req);
     }
     if pending.save {
         save_writer.send(components::SaveSceneRequest);
